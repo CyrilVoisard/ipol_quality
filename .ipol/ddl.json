@@ -1,0 +1,141 @@
+{
+  "general": {
+    "demo_title": "Recording Quality Score of a Walk with U-Turn Measured with Four Inertial Sensors",
+    "input_description": [
+      "<p>A trial of the test <i>standing &ndash; 10 m walk &ndash; U-turn &ndash; 10 m walk back &ndash; standing</i>, recorded with inertial sensors on the <b>head</b> (optional), the <b>lower back</b>, the <b>left foot</b> and the <b>right foot</b>.</p>",
+      "<p><b>Raw files</b> (one per sensor): text tables with the columns <code>PacketCounter</code>, <code>Acc_X</code>, <code>Acc_Y</code>, <code>Acc_Z</code>, <code>Gyr_X</code>, <code>Gyr_Y</code>, <code>Gyr_Z</code>, not filtered and not corrected. The head file may be left empty: the head indicators are then not computed.</p>",
+      "<p><b>Segmentation file</b> (JSON): the results of the two IPOL segmentation demos gathered in one object, <code>{\"uturn\": {content of uturn.json}, \"gait_events\": {content of gait_events.json}}</code>, given by the U-turn segmentation demo (lower-back file) and the MP-DTW gait events demo (foot files). The result file of one demo alone is accepted: the other part is then scored 0, with the reason.</p>"
+    ],
+    "param_description": [
+      "<p>Acquisition frequency of the sensors and units of the raw files (<i>automatic</i>: recognised from the order of magnitude of the signals).</p>"
+    ],
+    "requirements": "docker",
+    "timeout": 120
+  },
+
+  "build": {
+    "url": "git@github.com:CyrilVoisard/ipol_quality.git",
+    "rev": "origin/main",
+    "dockerfile": ".ipol/Dockerfile"
+  },
+
+  "inputs": [
+    {
+      "type": "data",
+      "description": "Head (optional)",
+      "ext": ".txt",
+      "max_weight": "20*1024*1024",
+      "required": false
+    },
+    {
+      "type": "data",
+      "description": "Lower back",
+      "ext": ".txt",
+      "max_weight": "20*1024*1024",
+      "required": true
+    },
+    {
+      "type": "data",
+      "description": "Left foot",
+      "ext": ".txt",
+      "max_weight": "20*1024*1024",
+      "required": true
+    },
+    {
+      "type": "data",
+      "description": "Right foot",
+      "ext": ".txt",
+      "max_weight": "20*1024*1024",
+      "required": true
+    },
+    {
+      "type": "data",
+      "description": "Segmentation (JSON)",
+      "ext": ".json",
+      "max_weight": "2*1024*1024",
+      "required": true
+    }
+  ],
+
+  "params": [
+    {
+      "id": "freq",
+      "label": "Acquisition frequency (Hz)",
+      "type": "numeric",
+      "values": {"min": 10, "max": 2000, "default": 100}
+    },
+    {
+      "id": "acc_unit",
+      "label": "Acceleration unit",
+      "type": "selection_radio",
+      "values": {"m/s²": "m/s2", "g": "g", "automatic": "auto"},
+      "default_value": "m/s2",
+      "vertical": false
+    },
+    {
+      "id": "gyr_unit",
+      "label": "Angular velocity unit",
+      "type": "selection_radio",
+      "values": {"rad/s": "rad/s", "deg/s": "deg/s", "automatic": "auto"},
+      "default_value": "rad/s",
+      "vertical": false
+    }
+  ],
+
+  "run": "python3 $bin/main.py -i0 input_0.txt -i1 input_1.txt -i2 input_2.txt -i3 input_3.txt -i4 input_4.json -freq $freq -acc_unit $acc_unit -gyr_unit $gyr_unit",
+
+  "results": [
+    {
+      "type": "html_text",
+      "visible": "info.head == 0",
+      "contents": ["<p><i>No head sensor was given: the head indicators are not computed and do not enter the scores.</i></p>"]
+    },
+    {
+      "type": "gallery",
+      "label": "<h2>Quality score</h2>",
+      "contents": {
+        "Quality score": {"img": "score.png"}
+      }
+    },
+    {
+      "type": "text_file",
+      "label": "<h2>Report</h2>",
+      "contents": "quality.txt",
+      "style": "{'width': '100%', 'height': '28em'}"
+    },
+    {
+      "type": "gallery",
+      "label": "<h2>Construction of the score</h2><p>The signals behind each group of indicators, with the quality of each indicator.</p>",
+      "contents": {
+        "Construction of the score": {"img": "construction.png"}
+      }
+    },
+    {
+      "type": "file_download",
+      "label": "<h2>Download</h2>",
+      "contents": {
+        "All values, deviations, qualities and parameters (JSON)": "quality.json",
+        "Indicators (CSV)": "indicators.csv",
+        "Quality score (PNG)": "score.png",
+        "Construction of the score (PNG)": "construction.png"
+      }
+    }
+  ],
+
+  "archive": {
+    "enable_reconstruct": true,
+    "files": {
+      "input_0.txt": "Head",
+      "input_1.txt": "Lower back",
+      "input_2.txt": "Left foot",
+      "input_3.txt": "Right foot",
+      "input_4.json": "Segmentation",
+      "score.png": "Quality score",
+      "construction.png": "Construction of the score",
+      "quality.txt": "Report",
+      "quality.json": "All values (JSON)"
+    },
+    "params": ["freq", "acc_unit", "gyr_unit"],
+    "info": {"head": "head sensor given"}
+  }
+}

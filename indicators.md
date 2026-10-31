@@ -1,0 +1,156 @@
+# Indicators of the recording quality score
+
+Reference definition of the score implemented in `package/`. The default values of the
+parameters are those of `package/params.py`.
+
+## 1. Data
+
+The test is a standing period (6 s requested), a 10 m straight walk, a U-turn, a 10 m walk back
+and a standing period (2 s requested). Sensors: head HE (optional), lower back LB, left foot LF,
+right foot RF; set $\mathcal{S}$, feet $\mathcal{F}=\{LF,RF\}$. For a sensor $s$ and a sample $i$:
+acceleration $\mathbf{a}_s(i)\in\mathbb{R}^3$ (m/s², gravity included), angular velocity
+$\boldsymbol{\omega}_s(i)$ (rad/s), packet counter $c_s(i)$; frequency $F$; $g=9.81$ m/s².
+
+Only the **raw files** are used. No filter and no offset correction are applied to the signals of
+the indicators: the usual pre-processing (gyroscope offset removed and gravity estimated on the
+first seconds) would make several indicators ideal by construction.
+
+**Packet counters** (`timebase.py`). The 16-bit counter of each file is unwrapped. Sensor $s$
+covers $[f_s, l_s]$ (first and last counter), span $N_s=l_s-f_s+1$; $m_s$ samples are lost in its
+gaps, the longest gap has $L_s$ samples. The signals are linearly interpolated on the integer
+counters common to the sensors provided.
+
+**Segmentation** (`segmentation.py`). The U-turn and the gait events come from the result files
+of the two IPOL segmentation demos. U-turn: boundaries $[u_0,u_1]$, number of U-turns $n_u$ and the
+model of Salarian et al. fitted on the heading of the lower back,
+$\theta(x)=a\,\varsigma\!\left(\frac{x-b}{c}\right)+C\,(x-x_0)$, with
+$\varsigma(u)=\tfrac12\sin(\pi u)$ on $[-\tfrac12,\tfrac12]$ and $\pm\tfrac12$ outside: amplitude $a$ (deg),
+centre $b$ and duration $c$ (samples), residual drift $C$ (deg/sample), coefficient of
+determination $R^2$. Indices
+count the samples from the first packet counter of each file, lost samples included; they are
+converted to the common grid.
+
+## 2. From a deviation to a quality
+
+Each indicator $k$ is a deviation $\delta_k\ge0$ from its ideal value ($\delta_k=0$), mapped to
+
+$$Q(\delta;\delta_{50})=100\,\max\left(0,\ 1-\frac{\delta}{2\,\delta_{50}}\right),$$
+
+so that $Q(0)=100$, $Q(\delta_{50})=50$, $Q(2\delta_{50})=0$. The half-quality deviations
+$\delta_{50}$ are the parameters of the indicators (`params.DELTA50`).
+
+**An indicator always has a quality** (`indicators/base.py`):
+
+| situation | quality | note |
+|---|---|---|
+| computed | $g\,Q(\delta;\delta_{50})$, $g\in\{0,1\}$ a gate (orient_rest only) | explanation when low |
+| not computable because of the recording (no standing period after the walk, U-turn not segmented, no gait events, no walk detected, invalid value) | 0 | `not computable: <reason>` |
+| sensor not provided (head) | none: left out of the scores | `sensor not provided` |
+
+## 3. Aggregation
+
+Rule $\mathrm{agg}$ (`scoring.py`, `settings["aggregation"]`): mean of the qualities if all of
+them reach the critical level $q_c=50$, their minimum otherwise ("critical_min"), so that one
+failing element (a sensor upside down, a long gap on one sensor) cannot be hidden by the others.
+
+- per sensor, for the groups raw, sensor and protocol: $\mathrm{agg}$ of the qualities of the
+  indicators of the sensor (quarters of the gauges of `score.png`);
+- per group: $\mathrm{agg}$ of the per-sensor scores and of the trial-level indicators of the group;
+- global score: mean of the available group scores.
+
+Indicators below $q_c$ are listed as critical, with their note.
+
+## 4. Phases of the trial
+
+**Activity** (`stillness.py`). With moving standard deviations $\sigma$ over $w=0.5$ s and
+$\mathcal{S}_0=\{LB,LF,RF\}$ (the head may move while the subject stands still):
+
+$$A_a(i)=\max_{s\in\mathcal{S}_0}\sigma\big(\lVert\mathbf{a}_s\rVert\big)(i),\qquad
+A_\omega(i)=\max_{s\in\mathcal{S}_0}\Big(\sum_{k}\sigma(\omega_{s,k})^2(i)\Big)^{1/2}.$$
+
+Thresholds $\tau_a=\max(0.05,\ 0.1\,\mathrm{med}\,A_a)$ and $\tau_\omega=\max(0.05,\ 0.1\,\mathrm{med}\,A_\omega)$,
+medians on the central third of the recording (walk). A sample moves if $A_a\ge\tau_a$ or
+$A_\omega\ge\tau_\omega$.
+
+**Walk**: the movement periods separated by less than 1 s are merged; the walk $[i_0,i_1)$ is the
+longest one. Standing durations $t_b=i_0/F$ before and $t_a=(N-i_1)/F$ after.
+
+**Standing windows**: longest still run of at least 0.3 s in $[0,\ i_0-0.3F)$ (before) and in
+$[i_1+0.3F,\ N)$ (after). The rest window $W$ is the window before, else the window after, else the
+quietest second of $A_\omega$ (no standing period at all: noted).
+
+**Quietest second of a sensor**: $W_s\subset W$ is the 1 s sub-window of minimal mean
+$\big(\sum_k\sigma(\omega_{s,k})^2\big)^{1/2}$. All rest values of sensor $s$ are taken on $W_s$,
+so that a subject who moves the head while standing is not mistaken for a faulty head sensor.
+$\bar{\mathbf{a}}_s$ and $\bar{\boldsymbol\omega}_s$ denote means on $W_s$, $A=[i_0,i_1)$ the walk.
+
+## 5. Indicators
+
+### Raw data — was the stream received entirely? (per sensor)
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| missing | $100\,m_s/N_s$ (%) | 50 % |
+| max_gap | $L_s/F$ (s) | 1 s |
+| disconnection | $100\,\big(N-N_s\big)/N$ (%), $N$ the span of all the sensors together: the sensor started late or stopped early | 10 % |
+
+### Sensors — does each sensor behave as expected at rest? (per sensor)
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| still_acc | $\big\lvert\mathrm{mean}_{W_s}\lVert\mathbf{a}_s\rVert-g\big\rvert$ (m/s²): the norm of the acceleration at rest is $g$ | $0.25\,g$ |
+| rest_acc | $100\ \mathrm{mean}_{W_s}\lVert\mathbf{a}_s-\bar{\mathbf{a}}_s\rVert\ /\ \mathrm{mean}_{A}\lVert\mathbf{a}_s-\bar{\mathbf{a}}_s\rVert$ (%) | 25 % |
+| rest_gyr | $100\ \mathrm{mean}_{W_s}\lVert\boldsymbol\omega_s\rVert\ /\ \mathrm{mean}_{A}\lVert\boldsymbol\omega_s\rVert$ (%), offset included | 25 % |
+| gyro_bias | $\lVert\bar{\boldsymbol\omega}_s\rVert$ (deg/s): offset of the gyroscope | 2 deg/s |
+
+### Protocol — were the protocol and the placement respected?
+
+Trial level:
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| n_uturns | $\lvert n_u-1\rvert$; 0 if the U-turn is not segmented | 2 |
+| still_time | $20-\big(3\min(t_b,6)+\min(t_a,2)\big)$ (s): the standing period before the walk weighs three times more (calibration of the sensors) | 10 s |
+
+Per sensor, with $E_s$ the expected axes of the gravity at rest ($\{X\}$ for HE and LB,
+$\{X,Z\}$ for the feet):
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| orient_rest | $1-\rho_s$, $\rho_s=\sum_{k\in E_s}\bar a_{s,k}^2/\lVert\bar{\mathbf{a}}_s\rVert^2$; gate $g=0$ if $\bar a_{s,k}\le0$ for some $k\in E_s$ (sensor upside down or axes swapped) | 0.5 |
+| walk_plane_acc | share of the energy of $\mathbf{a}_s-\bar{\mathbf{a}}_s$ on $A$ along $Y$ (off the sagittal plane) | 0.5 |
+| walk_plane_gyr (feet) | $1-$ share of the energy of $\boldsymbol\omega_s$ on $A$ about $Y$ | 0.5 |
+| orient_stability | angle (deg) between the mean accelerations of the quietest seconds of the standing periods before and after the walk: the sensor did not move on the body. Not computable (0) without a standing period before or after the walk | 20 deg |
+
+### U-turn — is the U-turn segmentation consistent? (trial level)
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| uturn_fit | $1-R^2$ | 0.25 |
+| uturn_amplitude | $\big\lvert180-\lvert a\rvert\big\rvert$ (deg) | 90 deg |
+| straight_dev | $\lvert C\rvert\,c/\lvert a\rvert$: drift of the heading left by the model over the turn, relative to its amplitude | 0.5 |
+| head_trunk | $1-\min(\Delta_{HE},\Delta_{LB})/\max(\Delta_{HE},\Delta_{LB})$, $\Delta_s$ the range of the heading of $s$ over $[u_0-1\,\mathrm{s},\ u_1+1\,\mathrm{s}]$ | 0.5 |
+
+The heading of sensor $s$ is the integral of its angular velocity about the vertical,
+$\boldsymbol\omega_s\cdot\bar{\mathbf{a}}_s/\lVert\bar{\mathbf{a}}_s\rVert$ (low-pass filtered,
+Butterworth order 8, 14 Hz), which does not depend on how the sensor is mounted. All four are
+0 when the U-turn is not segmented; head_trunk is left out without head sensor.
+
+### Segmentation — are the gait events consistent? (trial level)
+
+| indicator | deviation $\delta$ | $\delta_{50}$ |
+|---|---|---|
+| alternation | $100-\alpha$, $\alpha=100\,(\text{number of foot changes})/(L-1)$ for the $L$ heel strikes of both feet in chronological order (%); 0 with fewer than 2 events | 25 % |
+
+## 6. Figures
+
+`score.png`: global score in the centre, the five groups around it; the gauges of the raw, sensor
+and protocol groups are split into the four sensors (dotted quarter: sensor not provided).
+Colours: terracotta below 50, honey at 62.5, sage above 75.
+
+`construction.png`: one panel per family of indicators, with the score of the group and the
+quality of each indicator: (A) stream of each sensor and lost samples; (B) activity, thresholds,
+standing periods and walk; (C) $\lVert\mathbf{a}\rVert-g$ on the quietest second; (D) integrated
+angular velocity at rest (slope = bias); (E) share of the gravity per axis at rest, expected axes
+outlined; (F) energy of the walk per axis; (G) heading of the lower back and model of the U-turn;
+(H) angular velocity of the feet about $Y$ with the swing phases.

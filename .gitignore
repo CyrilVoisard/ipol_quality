@@ -1,0 +1,26 @@
+# --- Local only (not needed by the IPOL demo) ---------------------------------
+local/
+tests/
+results/
+.venv/
+
+# --- Python -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# --- Editors / OS -------------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+
+# --- Outputs of a local run of main.py -----------------------------------------
+score.png
+construction.png
+quality.txt
+quality.json
+indicators.csv
+algo_info.txt
+demo_failure.txt
+input_*

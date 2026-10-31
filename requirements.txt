@@ -1,0 +1,5 @@
+# IPOL execution image (Python 3.9), same versions as the two IPOL segmentation demos
+numpy==1.23.5
+scipy==1.10.1
+pandas==2.0.3
+matplotlib==3.7.2
