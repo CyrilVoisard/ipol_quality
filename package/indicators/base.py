@@ -8,7 +8,7 @@ import numpy as np
 
 from ..params import quality
 
-GROUPS = ("raw", "sensor", "protocol", "uturn", "segmentation")
+GROUPS = ("raw", "sensor", "orientation", "protocol", "uturn", "segmentation")
 
 
 @dataclass

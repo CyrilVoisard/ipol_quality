@@ -122,6 +122,7 @@ def segmentation_dict(truth, trim_start=None):
 
 def write_trial(folder, trial_id="SYN_1_1", layout="2025", freq=100, counter_start=0,
                 drop=None, truncate=None, trim_start=None, upside_down=(), tilt_after=None, head=True,
+                rotate_z=None, mounted_flat=(),
                 **sim_kwargs):
     """Write a synthetic trial in the layout of a public data set.
 
@@ -134,6 +135,8 @@ def write_trial(folder, trial_id="SYN_1_1", layout="2025", freq=100, counter_sta
         trim_start {dict} -- sensor -> number of samples removed at the beginning of the file
         head {bool} -- write the head sensor file
         upside_down {tuple} -- sensors turned by 180 deg about Y (X and Z reversed)
+        rotate_z {dict} -- sensor -> rotation of the sensor in its plane (deg, multiple of 90)
+        mounted_flat {tuple} -- sensors turned by 90 deg about Y (gravity on Z: wrong face)
         tilt_after {dict} -- sensor -> tilt (deg, about Y) of the sensor after the walk
         sim_kwargs -- passed to :func:`simulate`
 
@@ -153,6 +156,14 @@ def write_trial(folder, trial_id="SYN_1_1", layout="2025", freq=100, counter_sta
         if s in upside_down:
             acc[:, [0, 2]] *= -1
             gyr[:, [0, 2]] *= -1
+        if rotate_z and s in rotate_z:
+            # a sensor turned by theta in its plane measures the classic vectors rotated by -theta
+            t = np.radians(rotate_z[s])
+            r = np.array([[np.cos(t), np.sin(t), 0], [-np.sin(t), np.cos(t), 0], [0, 0, 1]])
+            acc, gyr = acc @ r.T, gyr @ r.T
+        if s in mounted_flat:
+            r = _rot_y(np.pi / 2)
+            acc, gyr = acc @ r.T, gyr @ r.T
         if tilt_after and s in tilt_after:
             i_after = n - int(round(truth["t_after"] * freq))
             r = _rot_y(np.radians(tilt_after[s]))

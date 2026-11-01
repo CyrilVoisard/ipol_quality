@@ -8,6 +8,7 @@ import pandas as pd
 from . import indicators as ind
 from .io import load_files, load_trial
 from .params import default_params
+from .placement import apply as apply_placement, detect as detect_placement
 from .scoring import aggregate
 from .segmentation import Segmentation, from_metadata, read_segmentation
 from .stillness import detect_stillness
@@ -23,6 +24,7 @@ class Assessment:
     indicators: list
     scores: object
     params: dict
+    placement: dict = None      # sensor -> placement.Placement (None: classic frames assumed)
 
     def table(self):
         """One row per indicator (and per sensor)."""
@@ -66,10 +68,15 @@ def assess(raw_trial, segmentation=None, params=None):
         except (OSError, ValueError) as error:     # unreadable file: scored, with the reason
             reason = "unreadable segmentation file ({})".format(error)
             seg = Segmentation(uturn_error=reason, gait_events_error=reason)
-    stillness = detect_stillness(aligned, params["settings"])
+    stillness = detect_stillness(aligned, params["settings"])     # norms: independent of the frames
+    placement = None
+    if params["settings"].get("placement", "detect") == "detect":
+        placement = detect_placement(aligned, stillness, params["settings"])
+        apply_placement(aligned, placement)
     indicators = ind.compute_all(aligned, stillness, seg, params)
     return Assessment(trial_id=raw_trial.trial_id, aligned=aligned, stillness=stillness, segmentation=seg,
-                      indicators=indicators, scores=aggregate(indicators, params), params=params)
+                      indicators=indicators, scores=aggregate(indicators, params), params=params,
+                      placement=placement)
 
 
 def assess_trial(trial_dir, segmentation=None, params=None, freq=None, acc_unit="auto", gyr_unit="auto"):

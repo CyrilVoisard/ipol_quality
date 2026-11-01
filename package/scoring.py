@@ -8,7 +8,7 @@ import numpy as np
 from .indicators.base import GROUPS
 from .params import SENSORS
 
-UPSTREAM = ("raw", "sensor", "protocol")
+UPSTREAM = ("raw", "sensor", "orientation")
 
 
 @dataclass

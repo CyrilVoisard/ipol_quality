@@ -7,7 +7,8 @@ from ..params import FEET, SENSORS
 from .base import absent, impossible, make, not_assessed
 from .sensor import rest_window
 
-GROUP = "protocol"
+GROUP = "protocol"          # trial level: number of U-turns, standing time
+ORIENTATION = "orientation"     # per sensor: purity of the orientation, plane of the walk, stability
 _AXIS = {"X": 0, "Y": 1, "Z": 2}
 
 
@@ -36,8 +37,8 @@ def compute(aligned, stillness, segmentation, params):
     off_plane = [_AXIS[k] for k in "XYZ" if k not in st["sagittal_axes"]]
     for s in SENSORS:
         if s not in aligned.acc:
-            out += [absent("orient_rest", GROUP, s, "-"), absent("walk_plane_acc", GROUP, s, "-"),
-                    absent("orient_stability", GROUP, s, "deg")]
+            out += [absent("orient_rest", ORIENTATION, s, "-"), absent("walk_plane_acc", ORIENTATION, s, "-"),
+                    absent("orient_stability", ORIENTATION, s, "deg")]
             continue
         acc, gyr = aligned.acc[s], aligned.gyr[s]
         w = rest_window(aligned, stillness, s, st)
@@ -57,25 +58,25 @@ def compute(aligned, stillness, segmentation, params):
             note = ""
         if stillness.rest.label == "quietest":
             note = (note + "; " if note else "") + "no standing period: quietest second used"
-        out.append(make("orient_rest", GROUP, s, share, "-", 1.0 - share, params, gate=gate, note=note))
+        out.append(make("orient_rest", ORIENTATION, s, share, "-", 1.0 - share, params, gate=gate, note=note))
 
         if walk:
             dyn = acc[active.slice()] - abar
             energy = np.mean(dyn ** 2, axis=0)
             off = float(np.sum(energy[off_plane]) / np.sum(energy))
-            out.append(make("walk_plane_acc", GROUP, s, off, "-", off, params))
+            out.append(make("walk_plane_acc", ORIENTATION, s, off, "-", off, params))
             if s in FEET:
                 g = np.mean(gyr[active.slice()] ** 2, axis=0)
                 share_y = float(g[_AXIS[st["foot_gyr_axis"]]] / np.sum(g))
-                out.append(make("walk_plane_gyr", GROUP, s, share_y, "-", 1.0 - share_y, params))
+                out.append(make("walk_plane_gyr", ORIENTATION, s, share_y, "-", 1.0 - share_y, params))
         else:
-            out.append(impossible("walk_plane_acc", GROUP, s, "-", "no walk detected"))
+            out.append(impossible("walk_plane_acc", ORIENTATION, s, "-", "no walk detected"))
             if s in FEET:
-                out.append(impossible("walk_plane_gyr", GROUP, s, "-", "no walk detected"))
+                out.append(impossible("walk_plane_gyr", ORIENTATION, s, "-", "no walk detected"))
 
         missing = [lab for lab, win in (("before", stillness.before), ("after", stillness.after)) if win is None]
         if missing:
-            out.append(not_assessed("orient_stability", GROUP, s, "deg",
+            out.append(not_assessed("orient_stability", ORIENTATION, s, "deg",
                                     "no standing period {} the walk (scored by still_time)".format(
                                         " and ".join(missing))))
         else:
@@ -83,5 +84,5 @@ def compute(aligned, stillness, segmentation, params):
             g1 = np.mean(acc[rest_window(aligned, stillness, s, st, stillness.after)], axis=0)
             cos = np.dot(g0, g1) / (np.linalg.norm(g0) * np.linalg.norm(g1))
             angle = float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
-            out.append(make("orient_stability", GROUP, s, angle, "deg", angle, params))
+            out.append(make("orient_stability", ORIENTATION, s, angle, "deg", angle, params))
     return out

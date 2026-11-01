@@ -54,10 +54,11 @@ Rule $\mathrm{agg}$ (`scoring.py`, `settings["aggregation"]`): mean of the quali
 them reach the critical level $q_c=50$, their minimum otherwise ("critical_min"), so that one
 failing element (a sensor upside down, a long gap on one sensor) cannot be hidden by the others.
 
-- per sensor, for the groups raw, sensor and protocol: $\mathrm{agg}$ of the qualities of the
-  indicators of the sensor (quarters of the gauges of `score.png`);
+- per sensor, for the groups raw, sensor and orientation: $\mathrm{agg}$ of the qualities of the
+  indicators of the sensor (cards of `score.png`);
 - per group: $\mathrm{agg}$ of the per-sensor scores and of the trial-level indicators of the group;
-- global score: mean of the available group scores.
+- global score: mean of the available group scores (six groups: raw, sensor, orientation,
+  protocol, U-turn, segmentation).
 
 Indicators below $q_c$ are listed as critical, with their note.
 
@@ -85,6 +86,23 @@ $\big(\sum_k\sigma(\omega_{s,k})^2\big)^{1/2}$. All rest values of sensor $s$ ar
 so that a subject who moves the head while standing is not mistaken for a faulty head sensor.
 $\bar{\mathbf{a}}_s$ and $\bar{\boldsymbol\omega}_s$ denote means on $W_s$, $A=[i_0,i_1)$ the walk.
 
+**Placement of the sensors** (`placement.py`, `settings["placement"]="detect"`). Classic frames:
+head and lower back with gravity on $+X$ at rest ($X$ cranio-caudal, $Y$ medio-lateral, $Z$
+antero-posterior); feet on the dorsum with gravity shared between $+X$ and $+Z$, $Y$ medio-lateral.
+The variants met in practice are rotations of the sensor in its own plane, about $Z$, by
+$\theta\in\{0,90,180,270\}$ degrees (strap put another way). Head and lower back:
+$\varphi=\operatorname{atan2}(\bar a_{s,Y},\bar a_{s,X})$ is snapped to the nearest quarter turn $k$
+and $\theta=-90k$. Feet: the medio-lateral axis is the in-plane axis with the larger energy of
+$\boldsymbol\omega_s$ on $A$ ($Y$: $\theta\in\{0,180\}$, $X$: $\theta\in\{90,270\}$); the sign of
+$\bar a_{s,X}$ (resp. $\bar a_{s,Y}$) chooses between the two. The signals are then rotated,
+$\mathbf{a}_s\leftarrow R_z(\theta)\,\mathbf{a}_s$ and
+$\boldsymbol\omega_s\leftarrow R_z(\theta)\,\boldsymbol\omega_s$, before the indicators.
+A variant is reported (report and figure), not scored: it is corrected without loss. What a
+rotation in the plane cannot fix (a sensor on another face, tilted, swapped axes) is measured by
+the orientation group. With `settings["placement"]="fixed"` the classic frames are assumed.
+On the 2025 data set, the detection agrees with the axis changes made by hand in the published
+processed files for 100 % of the head and lower-back sensors and 99.3 to 99.6 % of the foot sensors.
+
 ## 5. Indicators
 
 ### Raw data — was the stream received entirely? (per sensor)
@@ -104,17 +122,17 @@ $\bar{\mathbf{a}}_s$ and $\bar{\boldsymbol\omega}_s$ denote means on $W_s$, $A=[
 | rest_gyr | $100\ \mathrm{mean}_{W_s}\lVert\boldsymbol\omega_s\rVert\ /\ \mathrm{mean}_{A}\lVert\boldsymbol\omega_s\rVert$ (%), offset included | 25 % |
 | gyro_bias | $\lVert\bar{\boldsymbol\omega}_s\rVert$ (deg/s): offset of the gyroscope | 2 deg/s |
 
-### Protocol — were the protocol and the placement respected?
-
-Trial level:
+### Protocol — was the protocol respected? (trial level)
 
 | indicator | deviation $\delta$ | $\delta_{50}$ |
 |---|---|---|
 | n_uturns | $\lvert n_u-1\rvert$; 0 if the U-turn is not segmented | 2 |
 | still_time | $20-\big(3\min(t_b,6)+\min(t_a,2)\big)$ (s): the standing period before the walk weighs three times more (calibration of the sensors) | 10 s |
 
-Per sensor, with $E_s$ the expected axes of the gravity at rest ($\{X\}$ for HE and LB,
-$\{X,Z\}$ for the feet):
+### Orientation — once the placement corrected, is each sensor aligned with its segment? (per sensor)
+
+With $E_s$ the expected axes of the gravity at rest ($\{X\}$ for HE and LB, $\{X,Z\}$ for the
+feet):
 
 | indicator | deviation $\delta$ | $\delta_{50}$ |
 |---|---|---|
@@ -145,17 +163,19 @@ Butterworth order 8, 14 Hz), which does not depend on how the sensor is mounted.
 
 ## 6. Figures
 
-`score.png`: global score in the centre; raw data on top, sensors on the left, protocol on the
-right, U-turn bottom left, segmentation bottom right. The gauges of the raw, sensor and protocol
-groups are split into the four sensors (dotted quarter: sensor not provided); the trial-level
-part of the protocol (number of U-turns, standing time) is the "general" bar under its gauge.
-Colours: terracotta below 50, honey at 62.5, sage above 75. Below: the critical indicators and the
-indicators not assessed, with their reason.
+`score.png` (`settings["score_figure"]="body"`): on the left, the four sensors on a schematic body
+seen from the back, with the axes of each sensor as detected ($Z$ towards the reader) and a card
+per sensor: placement (classic, or variant corrected) and the scores of the sensor for the raw
+data, the rest and the orientation (dotted: sensor not provided). In the centre, the global score
+(mean of the six groups) between the three sensor-level groups (left) and the three trial-level
+groups (right). Colours: terracotta below 50, honey at 62.5, sage above 75. Below: the critical
+indicators and the indicators not assessed, with their reason. `settings["score_figure"]="star"`
+gives the previous layout (six gauges around the global score).
 
-`construction.png`: one panel per family of indicators, in the order of the groups, with the
-score of the group and the quality of each indicator: raw data (stream of each sensor, lost
-samples in black); sensors ($\lVert\mathbf{a}\rVert-g$ on the quietest second, integrated angular
-velocity at rest whose slope is the bias); protocol (activity, thresholds, standing periods and
-walk; share of the gravity per axis at rest, expected axes outlined; energy of the walk per axis);
-U-turn (heading of the lower back and of the head, model of the U-turn); segmentation (angular
-velocity of the feet about $Y$ with the swing phases).
+`construction.png`: the signals behind every indicator, with the same layout. Sensors (left):
+stream of each sensor, lost samples in black; $\lVert\mathbf{a}\rVert-g$ on the quietest second;
+integrated angular velocity at rest, whose slope is the bias; share of the gravity per axis at
+rest (expected axes outlined) with the placement detected and the change of tilt; energy of the
+walk per axis. Trial (right): activity, thresholds, standing periods and walk; heading of the
+lower back and of the head with the model of the U-turn; angular velocity of the feet about $Y$
+with the swing phases.

@@ -66,6 +66,11 @@ SETTINGS = {
     # "mean": plain mean)
     "critical": 50.0,
     "aggregation": "critical_min",
+    # placement of the sensors: "detect" finds the rotation of each sensor in its plane and
+    # corrects it before the indicators (reported, not scored); "fixed" assumes classic frames
+    "placement": "detect",
+    # layout of score.png: "body" (sensors on a schematic body, trial on the right) or "star"
+    "score_figure": "body",
 }
 
 

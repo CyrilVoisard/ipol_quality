@@ -40,6 +40,9 @@ def to_dict(assessment):
                          "uturn_error": seg.uturn_error,
                          "gait_events": 0 if seg.gait_events is None else len(seg.gait_events),
                          "gait_events_error": seg.gait_events_error},
+        "placement": None if not a.placement else {
+            s: {"rotation_deg": p.rotation, "classic": p.classic, "mapping": p.mapping(), "description": p.describe("en")}
+            for s, p in a.placement.items()},
         "parameters": a.params,
     }
 
@@ -60,17 +63,22 @@ def text_report(assessment):
     fmt = lambda v: "   -" if v is None else "{:4.0f}".format(v)
     lines = ["Recording quality score -- {}".format(assessment.trial_id), "-" * 60,
              "{:<34}{}".format("Global score", fmt(sc.global_score)), ""]
-    names = {"raw": "Raw data", "sensor": "Sensors", "protocol": "Protocol and placement",
-             "uturn": "U-turn segmentation", "segmentation": "Gait events segmentation"}
+    names = {"raw": "Raw data", "sensor": "Sensors at rest", "orientation": "Orientation (purity)",
+             "protocol": "Protocol (trial)", "uturn": "U-turn segmentation", "segmentation": "Gait events segmentation"}
     for g, v in sc.groups.items():
         lines.append("  {:<32}{}".format(names[g], fmt(v)))
-    lines += ["", "Per sensor            raw  sensor  protocol"]
+    lines += ["", "Per sensor            raw  sensor  orientation"]
     for s in SENSORS:
         p = sc.per_sensor[s]
         if all(v is None for v in p.values()):
             lines.append("  {:<18}  not provided".format(s))
         else:
-            lines.append("  {:<18}{}    {}      {}".format(s, fmt(p["raw"]), fmt(p["sensor"]), fmt(p["protocol"])))
+            lines.append("  {:<18}{}    {}      {}".format(s, fmt(p["raw"]), fmt(p["sensor"]), fmt(p["orientation"])))
+    if assessment.placement:
+        lines += ["", "Placement of the sensors (detected, corrected before the indicators)"]
+        for s, p in assessment.placement.items():
+            lines.append("  {:<6}{}{}".format(s, p.describe("en"), "" if p.classic else
+                                               "  (classic X, Y, Z = raw {})".format(p.mapping())))
     crit = [i for i in assessment.indicators if i.quality is not None and i.quality < assessment.params["settings"]["critical"]]
     if crit:
         lines += ["", "Critical indicators (quality < {:.0f})".format(assessment.params["settings"]["critical"])]
@@ -102,8 +110,10 @@ def save_figures(assessment, output, prefix="", dpi=110):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from .figures import STYLE, construction_sheet, score_figure
-    for name, draw in (("score", score_figure), ("construction", construction_sheet)):
+    from .figures import STYLE, construction_sheet, score_figure, sensor_figure
+    style = assessment.params["settings"].get("score_figure", "body")
+    for name, draw in (("score", sensor_figure if style == "body" else score_figure),
+                       ("construction", construction_sheet)):
         fig = draw(assessment)
         with plt.rc_context(STYLE):
             fig.savefig(os.path.join(output, prefix + name + ".png"), dpi=dpi, facecolor=fig.get_facecolor())

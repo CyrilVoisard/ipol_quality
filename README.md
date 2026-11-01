@@ -14,14 +14,18 @@ period, recorded with four inertial sensors: head (optional), lower back, left f
 In the spirit of the signal quality indices of the electrocardiogram, the code tells whether the
 recording can be trusted before any gait parameter is computed from it.
 
-Eighteen indicators are computed **on the raw files** (no filter, no offset correction), in five
-groups:
+The placement of each sensor is first detected: a sensor strapped in another way (turned by 90,
+180 or 270 degrees in its own plane) is reported and its axes are brought back to the classic
+frame before the indicators are computed. Eighteen indicators are then computed **on the raw
+signals** (no filter, no offset correction), in six groups, three per sensor and three for the
+trial:
 
 | group | question | indicators |
 |---|---|---|
 | Raw data | was the data stream received entirely? | missing, max_gap, disconnection (per sensor) |
 | Sensors | does each sensor behave as expected at rest? | still_acc, rest_acc, rest_gyr, gyro_bias (per sensor) |
-| Protocol | were the protocol and the placement of the sensors respected? | n_uturns, still_time; orient_rest, walk_plane_acc, walk_plane_gyr, orient_stability (per sensor) |
+| Orientation | once the placement corrected, is each sensor aligned with the body segment, and did it stay so? | orient_rest, walk_plane_acc, walk_plane_gyr, orient_stability (per sensor) |
+| Protocol | was the protocol respected? | n_uturns, still_time |
 | U-turn | is the U-turn segmentation consistent? | uturn_fit, uturn_amplitude, straight_dev, head_trunk |
 | Segmentation | are the gait events physiologically consistent? | alternation |
 
@@ -32,7 +36,7 @@ the scores, with the reason reported: the indicators of a sensor that was not pr
 the orientation stability when a standing period is missing, since that deviation from the protocol
 is already scored by the standing time (it is not penalised twice). Qualities are combined
 per sensor and per group (mean, or minimum as soon as one element is below 50) and the global score
-is the mean of the five groups. Every definition is given in [`indicators.md`](indicators.md).
+is the mean of the six groups. Every definition is given in [`indicators.md`](indicators.md).
 
 ## Inputs
 
@@ -49,7 +53,8 @@ is the mean of the five groups. Every definition is given in [`indicators.md`](i
 before `PacketCounter` are skipped). The packet counter is used to detect lost samples and to
 align the sensors (16-bit wrap-around handled). Sensor frames of the public data sets: X along the
 cranio-caudal axis for the head and the lower back, foot sensors on the dorsum with Y as the
-medio-lateral axis.
+medio-lateral axis. Sensors turned in their own plane are detected and corrected (see
+`indicators.md`, section 4).
 
 **Segmentation file**: the results of the two IPOL segmentation demos, gathered in one JSON object
 
@@ -77,8 +82,8 @@ the angular velocity (rad/s, deg/s or automatic).
 
 | file | content |
 |---|---|
-| `score.png` | global score surrounded by the five group scores; per-sensor quarters for raw data, sensors and protocol, "general" bar for the trial-level part of the protocol |
-| `construction.png` | the signals behind each group, in the order of the groups: stream, rest, phases, orientation, walk, U-turn, gait events |
+| `score.png` | on the left the four sensors on a schematic body (placement detected, scores of the raw data, of the rest and of the orientation of each sensor); in the centre the three sensor-level groups, the global score and the three trial-level groups (protocol, U-turn, segmentation); below, the critical indicators with their reason |
+| `construction.png` | the signals behind each group, with the same layout: on the left the sensors (stream, rest, gravity per axis with the placement detected, energy of the walk per axis), on the right the trial (standing periods and walk, U-turn, gait events) |
 | `quality.txt` | scores, per-sensor scores and critical indicators with their reason |
 | `quality.json` | every value, deviation, quality and parameter |
 | `indicators.csv` | one row per indicator and sensor |
@@ -128,7 +133,8 @@ the two IPOL demos):
 | `package/timebase.py` | packet counters, lost samples, alignment of the sensors |
 | `package/stillness.py` | standing periods and walk |
 | `package/segmentation.py` | reading of the segmentation results, headings |
-| `package/indicators/` | the five groups of indicators |
+| `package/placement.py` | placement of the sensors: detection and correction |
+| `package/indicators/` | the six groups of indicators |
 | `package/params.py` | half-quality deviations and settings |
 | `package/scoring.py` | aggregation into scores |
 | `package/pipeline.py` | from the files to the scores |
