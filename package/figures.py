@@ -410,8 +410,7 @@ def construction_sheet(assessment):
     else:
         ax.text(0.5, 0.5, "U-turn not segmented\n" + str(seg.uturn_error), transform=ax.transAxes, ha="center",
                 va="center", fontsize=9, color=_LOW)
-        title = "heading"
-    _panel(ax, "uturn", title, a.scores.groups["uturn"], chips, xlabel="time (s)", ylabel="deg")
+    _panel(ax, "uturn", "", a.scores.groups["uturn"], chips, xlabel="time (s)", ylabel="deg")
 
     # H. gait events ---------------------------------------------------------------------------------------
     ax = fig.add_subplot(gs[3, 1])
