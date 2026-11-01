@@ -29,8 +29,10 @@ trial:
 | U-turn | is the U-turn segmentation consistent? | uturn_fit, uturn_amplitude, straight_dev, head_trunk |
 | Segmentation | are the gait events physiologically consistent? | alternation |
 
-Each indicator is a deviation from its ideal value, mapped to a quality between 0 and 100 (50 at a
-half-quality deviation). An indicator that cannot be computed because of the recording (U-turn
+Each indicator is a deviation from its ideal value, mapped to a quality between 0 and 100 (100 up
+to a tolerance, 50 at a half-quality deviation). Defects that the usual pre-processing corrects
+without effect on the gait algorithms are tolerated; the head, which may move while the subject
+stands still, is not scored on movement at rest nor on orientation stability. An indicator that cannot be computed because of the recording (U-turn
 not segmented, no gait events...) gets the quality 0 **and the reason**. Two cases are left out of
 the scores, with the reason reported: the indicators of a sensor that was not provided (head), and
 the orientation stability when a standing period is missing, since that deviation from the protocol

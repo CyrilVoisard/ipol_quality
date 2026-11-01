@@ -23,13 +23,16 @@ def compute(aligned, stillness, segmentation, params):
     else:
         out.append(make("n_uturns", GROUP, None, u.n_uturns, "-", abs(u.n_uturns - 1), params))
 
-    tb = min(stillness.t_before, st["still_before_target"])
-    ta = min(stillness.t_after, st["still_after_target"])
-    wb, wa = st["still_time_weights"]
-    target = wb * st["still_before_target"] + wa * st["still_after_target"]
-    out.append(make("still_time", GROUP, None, wb * tb + wa * ta, "s", max(0.0, target - wb * tb - wa * ta), params,
-                    note="standing {:.1f} s before (6 s expected), {:.1f} s after (2 s expected)".format(
-                        stillness.t_before, stillness.t_after)))
+    # shortfall of the standing periods: the larger of the shortfall before the walk and the mean
+    # shortfall of the two periods. With 4 s / 2 s and delta50 = 2 s: 4 s and 2 s give 100, 3 s and
+    # 1 s give 75, and less than 2 s before the walk gives less than 50 whatever comes after
+    tb_target, ta_target = st["still_before_target"], st["still_after_target"]
+    short_b = tb_target - min(stillness.t_before, tb_target)
+    short_a = ta_target - min(stillness.t_after, ta_target)
+    out.append(make("still_time", GROUP, None, stillness.t_before + stillness.t_after, "s",
+                    max(short_b, (short_b + short_a) / 2.0), params,
+                    note="standing {:.1f} s before ({:g} s expected), {:.1f} s after ({:g} s expected)".format(
+                        stillness.t_before, tb_target, stillness.t_after, ta_target)))
 
     # --- per sensor ----------------------------------------------------------------------------
     active = stillness.active
@@ -37,8 +40,9 @@ def compute(aligned, stillness, segmentation, params):
     off_plane = [_AXIS[k] for k in "XYZ" if k not in st["sagittal_axes"]]
     for s in SENSORS:
         if s not in aligned.acc:
-            out += [absent("orient_rest", ORIENTATION, s, "-"), absent("walk_plane_acc", ORIENTATION, s, "-"),
-                    absent("orient_stability", ORIENTATION, s, "deg")]
+            out += [absent("orient_rest", ORIENTATION, s, "-"), absent("walk_plane_acc", ORIENTATION, s, "-")]
+            if s in st["still_sensors"]:
+                out.append(absent("orient_stability", ORIENTATION, s, "deg"))
             continue
         acc, gyr = aligned.acc[s], aligned.gyr[s]
         w = rest_window(aligned, stillness, s, st)
@@ -75,7 +79,9 @@ def compute(aligned, stillness, segmentation, params):
                 out.append(impossible("walk_plane_gyr", ORIENTATION, s, "-", "no walk detected"))
 
         missing = [lab for lab, win in (("before", stillness.before), ("after", stillness.after)) if win is None]
-        if missing:
+        if s not in st["still_sensors"]:
+            pass        # the head may change its tilt between the start and the end (gaze)
+        elif missing:
             out.append(not_assessed("orient_stability", ORIENTATION, s, "deg",
                                     "no standing period {} the walk (scored by still_time)".format(
                                         " and ".join(missing))))

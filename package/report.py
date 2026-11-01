@@ -110,10 +110,8 @@ def save_figures(assessment, output, prefix="", dpi=110):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from .figures import STYLE, construction_sheet, score_figure, sensor_figure
-    style = assessment.params["settings"].get("score_figure", "body")
-    for name, draw in (("score", sensor_figure if style == "body" else score_figure),
-                       ("construction", construction_sheet)):
+    from .figures import STYLE, construction_sheet, score_figure
+    for name, draw in (("score", score_figure), ("construction", construction_sheet)):
         fig = draw(assessment)
         with plt.rc_context(STYLE):
             fig.savefig(os.path.join(output, prefix + name + ".png"), dpi=dpi, facecolor=fig.get_facecolor())

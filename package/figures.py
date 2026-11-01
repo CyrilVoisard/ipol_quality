@@ -82,30 +82,6 @@ def _progress_ring(ax, cx, cy, r, value, lw, fontsize, label=None):
         ax.text(cx, cy - 0.33 * r - 0.08, label, ha="center", va="top", fontsize=fontsize * 0.32, color=INK2, zorder=5)
 
 
-def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize):
-    """Ring of four arcs (one per sensor) with the group score in the centre."""
-    centres = {"HE": 135, "LB": 45, "LF": 225, "RF": 315}
-    for s, c in centres.items():
-        q = values.get(s)
-        if q is None:
-            _arc(ax, cx, cy, r, c - 32, c + 32, MUTED, lw * 0.25, ls=(0, (1, 3)))
-        else:
-            _arc(ax, cx, cy, r, c - 32, c + 32, quality_color(q), lw)
-        x, y = cx + (r + 0.30) * np.cos(np.radians(c)), cy + (r + 0.30) * np.sin(np.radians(c))
-        ax.text(x, y, "{}\n{}".format(s, _fmt(q)), ha="center", va="center", fontsize=7.5, color=INK2,
-                linespacing=1.1, zorder=5)
-    ax.text(cx, cy, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold", zorder=5)
-
-
-def _general_bar(ax, cx, y, half, value, lw):
-    """Bar of the trial-level part of a group (e.g. "general" of the protocol), coloured by quality."""
-    if value is None:
-        ax.plot([cx - half, cx + half], [y, y], color=MUTED, lw=lw * 0.25, ls=(0, (1, 3)), dash_capstyle="round")
-    else:
-        ax.plot([cx - half, cx + half], [y, y], color=quality_color(value), lw=lw, solid_capstyle="round", zorder=2)
-    ax.text(cx, y - 0.24, "general {}".format(_fmt(value)), ha="center", va="center", fontsize=7.5, color=INK2, zorder=5)
-
-
 def _critical_lines(assessment, n_max=10):
     """Text lines of the critical and not assessed indicators, and the heading of the list."""
     st = assessment.params["settings"]
@@ -148,54 +124,8 @@ def _scale_and_list(fig, assessment, y_scale_in, H, x0=0.06, scale_x=(0.30, 0.40
              linespacing=1.45)
 
 
-@styled
-def score_figure(assessment, title=None):
-    """The global score in the centre, the six groups around it (star layout)."""
-    sc, st = assessment.scores, assessment.params["settings"]
-    head, lines = _critical_lines(assessment)
-
-    # vertical layout in inches: title, star, colour scale, list of the critical indicators
-    W, top, star, scale, gap, line = 8.0, 0.55, 7.6, 0.45, 0.42, 0.165
-    H = top + star + scale + gap + line * max(len(lines), 1) + 0.3
-    fig = plt.figure(figsize=(W, H), facecolor=BACKGROUND)
-    ax = fig.add_axes([0.0, 1 - (top + star) / H, 1.0, star / H])
-    ax.set_xlim(-4.0, 4.0)
-    ax.set_ylim(-4.15, 3.9)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    fig.text(0.06, 1 - 0.3 / H, title or "Recording quality", fontsize=17, color=INK, weight="bold", va="top")
-
-    # raw data on top, sensors and placement on both sides, U-turn and segmentation below, protocol
-    # (trial level) at the bottom
-    layout = {"raw": 90, "sensor": 150, "orientation": 30, "uturn": -150, "segmentation": -30, "protocol": -90}
-    R, r_sat = 2.75, 0.62
-    # soft halo and spokes
-    ax.add_patch(plt.Circle((0, 0), 1.45, color=HALO, zorder=0))
-    for g, ang in layout.items():
-        c, s = np.cos(np.radians(ang)), np.sin(np.radians(ang))
-        ax.plot([1.42 * c, (R - r_sat - 0.42) * c], [1.42 * s, (R - r_sat - 0.42) * s],
-                color=quality_color(sc.groups[g]), lw=3, alpha=0.55, solid_capstyle="round", zorder=1)
-    _progress_ring(ax, 0, 0, 1.1, sc.global_score, lw=20, fontsize=44)
-
-    for g, ang in layout.items():
-        cx, cy = R * np.cos(np.radians(ang)), R * np.sin(np.radians(ang))
-        ax.add_patch(plt.Circle((cx, cy), r_sat + 0.12, color=BACKGROUND, zorder=0.5))
-        if g in ("raw", "sensor", "orientation"):
-            _sensor_ring(ax, cx, cy, r_sat, {s: sc.per_sensor[s][g] for s in SENSORS}, sc.groups[g], lw=9, fontsize=17)
-        else:
-            _progress_ring(ax, cx, cy, r_sat, sc.groups[g], lw=9, fontsize=17)
-        # titles: above the satellites of the upper half, below those of the lower half (aligned in pairs)
-        dy = r_sat + 0.6 if ang > 0 else -(r_sat + 0.45)
-        if g == "protocol":
-            dy = -(r_sat + 0.4)
-        ax.text(cx, cy + dy, GROUP_TITLES[g], ha="center", va="center", fontsize=11.5, color=INK, weight="bold")
-
-    _scale_and_list(fig, assessment, top + star, H)
-    return fig
-
-
 # ---------------------------------------------------------------------------------------
-# Score figure, body layout: the sensors on a schematic body, the trial on the right
+# Score figure: the sensors on a schematic body, the trial on the right
 # ---------------------------------------------------------------------------------------
 
 SENSOR_TITLES = {"HE": "Head", "LB": "Lower back", "LF": "Left foot", "RF": "Right foot"}
@@ -273,8 +203,8 @@ def _sensor_card(ax, x, y, s, assessment, w=2.25, h=1.02):
 
 
 @styled
-def sensor_figure(assessment, title=None):
-    """Score at a glance, body layout. Left: the four sensors on a schematic body seen from the back
+def score_figure(assessment, title=None):
+    """Score at a glance. Left: the four sensors on a schematic body seen from the back
     (placement detected and corrected, scores of the raw data, of the rest and of the orientation of
     each sensor). Centre: the three sensor-level groups, the global score (mean of the six groups) and
     the three trial-level groups (protocol, U-turn, segmentation)."""
@@ -494,7 +424,8 @@ def construction_sheet(assessment):
             where, color = "classic placement", "#3f8a5f"
         else:
             where, color = "rotated {}, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation]), "#a7752a"
-        tilt = "Δtilt {:.1f}°".format(stab.value) if stab.value is not None else "Δtilt –"
+        tilt = "Δtilt {:.1f}°".format(stab.value) if stab is not None and stab.value is not None else \
+            "Δtilt –" if stab is not None else "Δtilt not scored (head)"
         ax.text(1.03, k, where, va="center", fontsize=7.5, color=color)
         ax.text(1.03, k + 0.32, tilt, va="center", fontsize=6.8, color=INK2)
     ax.set_yticks(range(len(SENSORS)), [SENSOR_NAMES[s] for s in SENSORS])
