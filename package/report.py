@@ -1,6 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Text, CSV and JSON outputs of an assessment."""
 
 import json
 import os

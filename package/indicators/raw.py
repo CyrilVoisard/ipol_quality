@@ -1,12 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Group "raw": integrity of the data stream, per sensor, from the packet counters.
-
-* missing       -- share of the samples lost inside the span of the sensor (%);
-* max_gap       -- longest run of lost samples (s);
-* disconnection -- share of the recording (span covered by the sensors together) that the
-                   sensor does not cover, because it started late or stopped early (%).
-"""
 
 from ..params import SENSORS
 from .base import absent, make

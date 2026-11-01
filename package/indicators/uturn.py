@@ -1,19 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Group "uturn": consistency of the U-turn segmentation.
-
-* uturn_fit       -- coefficient of determination R^2 of the turning model, delta = 1 - R^2;
-* uturn_amplitude -- amplitude |a| of the fitted turn, delta = |180 - |a|| (deg);
-* straight_dev    -- residual drift of the model over the turn relative to its amplitude,
-                     |C| c / |a| (trunk heading drift that remains after the drift correction);
-* head_trunk      -- ratio min/max of the heading changes of the head and of the trunk over
-                     [start - m, end + m] (m = head_trunk_margin), delta = 1 - ratio. The
-                     headings are integrated from the angular velocity about the vertical
-                     (projection on the gravity measured at rest), which does not depend on
-                     how the sensors are mounted (mounting is checked by orient_rest).
-
-Quality 0 when the U-turn is not segmented; head_trunk is not computed without head sensor.
-"""
 
 import numpy as np
 

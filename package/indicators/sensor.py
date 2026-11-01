@@ -1,19 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Group "sensor": behaviour of each sensor at rest, on the raw (unfiltered, uncorrected) signals.
-
-For each sensor, the indicators are computed on its quietest ``rest_sub`` seconds (minimal
-angular velocity activity) within the rest window W, so that a subject who moves the head
-while standing is not mistaken for a faulty head sensor. At rest the norm of the acceleration
-equals g, the dynamic acceleration and the angular velocity vanish. The usual pre-processing
-removes the gyroscope offset and the gravity on the first seconds of the recording: computed
-on pre-processed signals, these indicators would be close to ideal by construction.
-
-* still_acc  -- | mean_W ||a|| - g |  (m/s^2);
-* rest_acc   -- mean_W ||a - abar_W|| / mean_A ||a - abar_W|| (%), A the walk;
-* rest_gyr   -- mean_W ||w|| / mean_A ||w|| (%), gyroscope offset included;
-* gyro_bias  -- || mean_W w || (deg/s).
-"""
 
 import numpy as np
 

@@ -1,11 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Group "segmentation": physiological consistency of the gait events.
-
-* alternation -- the heel strikes of both feet, merged in chronological order, must alternate
-                 between left and right: alpha = 100 * (number of foot changes) / (L - 1) for L
-                 events, delta = 100 - alpha (%). Quality 0 if fewer than 2 events are given.
-"""
 
 import numpy as np
 

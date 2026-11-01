@@ -1,24 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Aggregation of the indicators into scores.
-
-Aggregation rule ``agg`` (``settings["aggregation"]``):
-
-* "critical_min" (default): mean of the elements if all of them reach the critical quality
-  (``settings["critical"]``, 50), minimum otherwise -- a single failing element (a sensor
-  upside down, a long gap on one sensor) cannot be hidden by the others;
-* "mean": plain mean.
-
-Levels:
-
-* per sensor, for each upstream group (raw, sensor, protocol): agg of the qualities of the
-  indicators of that sensor -- the four quarters of the upstream gauges;
-* per group: agg of the per-sensor scores of the group and of its trial-level indicators;
-* global: mean of the available group scores.
-
-Indicators whose quality is None (sensor not provided) are left out; a group without any available
-element has no score. ``Scores.critical`` lists the indicators below the critical quality.
-"""
 
 from dataclasses import dataclass, field
 

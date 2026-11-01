@@ -1,30 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Group "protocol": respect of the protocol and placement of the sensors.
-
-Trial level:
-
-* n_uturns   -- number of U-turns counted by the U-turn segmentation (1 expected):
-                delta = |n - 1|; quality 0 if the U-turn is not segmented;
-* still_time -- standing durations before (t_b, target 6 s) and after (t_a, target 2 s) the
-                walk, capped at their targets: delta = 20 - (3 t_b + t_a) s.
-
-Per sensor (the rest values are taken on the quietest second of the sensor, see sensor.py):
-
-* orient_rest      -- share of the mean acceleration vector at rest (gravity) carried by the
-                      expected axes (X for the head and the trunk, X and Z for the feet),
-                      delta = 1 - share; quality 0 when the gravity has the wrong sign on one of
-                      these axes (sensor upside down);
-* walk_plane_acc   -- during the walk, share of the energy of the dynamic acceleration lying off
-                      the sagittal plane (along Y);
-* walk_plane_gyr   -- feet only: 1 - share of the energy of the angular velocity about Y;
-* orient_stability -- angle between the mean acceleration vectors (tilt of the sensor) of the
-                      standing periods before and after the walk: the sensor must not move on
-                      the body during the trial (the heading change of the U-turn does not affect
-                      it). Not assessed (left out of the scores, reason reported) when one of
-                      the two standing periods is missing: that deviation from the protocol is
-                      scored once, by still_time.
-"""
 
 import numpy as np
 

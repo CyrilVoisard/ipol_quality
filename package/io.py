@@ -1,22 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Reading of the raw recordings.
-
-A trial is made of one raw file per sensor -- lower back (LB), left foot (LF), right foot (RF)
-and, optionally, head (HE) -- each holding the columns ``PacketCounter``, ``Acc_X``, ``Acc_Y``,
-``Acc_Z``, ``Gyr_X``, ``Gyr_Y``, ``Gyr_Z`` (other columns are ignored, header lines before
-``PacketCounter`` are skipped).
-
-The files can be given explicitly (IPOL demo) or found in a trial folder of the public data
-sets, which share the layout ``<trial>_raw_data_{HE,LB,LF,RF}.txt`` + ``<trial>_meta.json``:
-
-* Voisard et al., Scientific Data 12:1674 (2025): flat metadata (``freq``, ``uturnBoundaries``,
-  ``leftGaitEvents``...);
-* AMISIA cohort (Limoges): metadata nested in categories (``gait.freq``...).
-
-Units: accelerations in m/s^2 or g, angular velocities in rad/s or deg/s. They are given
-(``acc_unit``, ``gyr_unit``) or recognised from the order of magnitude of the signal ("auto").
-"""
 
 import glob
 import json

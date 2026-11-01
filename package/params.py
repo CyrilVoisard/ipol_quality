@@ -1,20 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Parameters of the quality score.
-
-Every indicator is mapped to [0, 100] by the same bounded linear function of its
-deviation delta >= 0 from the ideal value (delta = 0):
-
-    Q(delta; delta50) = 100 * max(0, 1 - delta / (2 * delta50)),
-
-so that Q(0) = 100, Q(delta50) = 50 and Q(2 * delta50) = 0. The only parameter of an
-indicator is therefore its half-quality deviation delta50, gathered in ``DELTA50``.
-The values below are the a priori values of the first version of the score; they are
-meant to be revised by the calibration study.
-
-The other parameters (``SETTINGS``) are the constants of the computation itself
-(sensor axes, protocol durations, stillness detection).
-"""
 
 import copy
 

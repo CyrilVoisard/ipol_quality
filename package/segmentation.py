@@ -1,26 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Segmentation results used by the score (U-turn and gait events).
-
-The score does not segment the trial itself: it reads the outputs of two IPOL demos,
-
-* U-turn segmentation with a lower-back IMU (model of Salarian et al.): file ``uturn.json``;
-* MP-DTW gait events detection: file ``gait_events.json``;
-
-gathered in a single segmentation file::
-
-    {
-      "uturn":       { content of uturn.json }        (or null),
-      "gait_events": { content of gait_events.json }  (or null)
-    }
-
-The indices of both files count the samples from the first row of the raw file of the sensor
-they were computed on (lower back for the U-turn, each foot for its gait events). They are
-converted here to the common time base of the trial (``AlignedTrial.to_grid``).
-
-A missing part, or an error message given instead (``"uturn_error"``, ``"gait_events_error"``),
-is a failure of the segmentation: the indicators that depend on it get a zero quality.
-"""
 
 import json
 from dataclasses import dataclass

@@ -1,15 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Synthetic trials with a known ground truth, written in the layout of the public data sets.
-
-The protocol is simulated as: standing, straight walk, U-turn (180 deg in ``t_turn`` s with a
-half-sine yaw rate), straight walk back, standing. The feet alternate swing phases (large
-angular velocity about Y, pitch of the gravity vector between X and Z), the trunk and the head
-carry the gravity along X and turn about X. Defects can be injected to check that each
-indicator reacts to the failure it is meant to detect (see ``tests/``).
-
-Used by the tests, the examples and the IPOL demo when no recording is supplied.
-"""
 
 import json
 import os

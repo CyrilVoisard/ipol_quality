@@ -1,11 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""From the raw files and the segmentation of a trial to its quality score.
-
-    raw files --(io)--> RawTrial --(timebase)--> AlignedTrial --+--(stillness)--> Stillness
-    segmentation file --(segmentation)--> Segmentation ---------+
-                indicators (5 groups) --(scoring)--> Scores
-"""
 
 from dataclasses import dataclass
 

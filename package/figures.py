@@ -1,18 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Figures of an assessment.
-
-* :func:`score_figure` -- the score at a glance: the global score in the centre and the five
-  groups around it. The upstream groups (raw data, sensors, protocol) are rings of four arcs,
-  one per sensor (head top left, lower back top right, left foot bottom left, right foot bottom
-  right), the U-turn and segmentation groups are progress rings. The critical indicators are
-  listed with their reason.
-* :func:`construction_sheet` -- the signals and intermediate results behind each indicator,
-  to check visually that each one measures what it is meant to measure.
-
-Colours: the quality goes from terracotta (below 50) through honey (62) to sage green (above
-75) and its value is always written; each sensor keeps the same colour in every panel.
-"""
 
 import functools
 import os

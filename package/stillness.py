@@ -1,26 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Standing periods before and after the walk, from the raw signals only.
-
-The detection does not use the segmentation, so that the upstream indicators do not depend on
-it.
-
-1. Activity. For each sensor of ``still_sensors`` (lower back and feet; the head may move while
-   the subject stands): moving standard deviation of the norm of the acceleration, and root of
-   the sum of the moving variances of the three angular velocities (insensitive to a gyroscope
-   offset). Maximum over the sensors.
-2. Movement: activity above ``still_rel`` times its median during the central third of the
-   recording (the walk), bounded below by ``still_floor_*``.
-3. Walk: the longest movement period, after merging the movements separated by pauses
-   shorter than ``still_merge_gap``. Isolated movements before or after it (e.g. a transient
-   when the recording starts) are not the walk.
-4. t_before and t_after: durations before and after the walk (protocol: 6 s and 2 s).
-5. Still windows: the longest still period before the walk and after it (minus a margin of
-   ``still_margin`` next to the walk), if longer than ``still_min_duration``.
-6. Rest window: the window before the walk, otherwise the one after it, otherwise the quietest
-   ``rest_sub`` seconds of the recording (``label = "quietest"``, recorded as a protocol
-   deviation by the indicators).
-"""
 
 from dataclasses import dataclass
 from typing import Optional

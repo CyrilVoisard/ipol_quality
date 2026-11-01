@@ -86,7 +86,7 @@ def unwrap_counter(counter, modulus=COUNTER_MODULUS):
 
 def stream_stats(counter):
     """Lost samples and disordered rows of an unwrapped counter."""
-    counter = np.asarray(counter, dtype=float)
+    counter = np.round(np.asarray(counter, dtype=float))   # counters written as 7.000000000000001
     steps = np.diff(counter)
     where = np.where(steps > 1)[0]
     gaps = steps[where] - 1

@@ -1,18 +1,5 @@
 # Copyright (C) 2026 Cyril Voisard
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Common structure of the indicators.
-
-Every indicator is always given a quality, with one exception:
-
-* computed: Q(delta; delta50) in [0, 100];
-* not computable because of the recording (no standing period after the walk, U-turn not
-  segmented, no gait events...): quality 0, the reason being given in ``note``;
-* sensor not provided (the head sensor is optional): quality None, left out of the scores;
-* not assessed because of a protocol deviation that another indicator already scores (the
-  orientation stability needs a standing period before and after the walk, whose absence is
-  scored by still_time): quality None, left out of the scores, the reason being given in
-  ``note`` and reported -- the same deviation is not penalised twice.
-"""
 
 from dataclasses import dataclass
 from typing import Optional
