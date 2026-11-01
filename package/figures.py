@@ -353,7 +353,7 @@ def construction_sheet(assessment):
     ax.invert_yaxis()
     ax.set_xlim(0, 1.3)
     ax.set_xticks([0, 0.5, 1])
-    _panel(ax, "protocol", "share of gravity per axis at rest (expected axes outlined)", a.scores.groups["protocol"],
+    _panel(ax, "protocol", "gravity per axis at rest (expected axes outlined)", a.scores.groups["protocol"],
            _sensor_chips(a, "protocol"), xlabel="share of the gravity")
 
     # F. walking plane ------------------------------------------------------------------------------------
@@ -382,7 +382,7 @@ def construction_sheet(assessment):
     ax.set_xlim(0, 1)
     chips = [("acc {} {}".format(s, _fmt(_ind(a, "walk_plane_acc", s).quality)), _ind(a, "walk_plane_acc", s).quality) for s in sensors]
     chips += [("rot {} {}".format(s, _fmt(_ind(a, "walk_plane_gyr", s).quality)), _ind(a, "walk_plane_gyr", s).quality) for s in FEET]
-    _panel(ax, "protocol", "energy of the walk per axis (sagittal axes outlined)", a.scores.groups["protocol"], chips,
+    _panel(ax, "protocol", "energy of the walk per axis (expected axes outlined)", a.scores.groups["protocol"], chips,
            xlabel="share of the energy")
 
     # G. U-turn -------------------------------------------------------------------------------------------
@@ -407,7 +407,6 @@ def construction_sheet(assessment):
         for b in (u.start, u.end):
             ax.axvline(b / freq, color=INK, lw=0.8)
         ax.legend(fontsize=7, frameon=False, loc="lower right")
-        title = "heading: R² {:.3f}, amplitude {:.0f}°, {} U-turn(s)".format(u.r2, u.amplitude, u.n_uturns)
     else:
         ax.text(0.5, 0.5, "U-turn not segmented\n" + str(seg.uturn_error), transform=ax.transAxes, ha="center",
                 va="center", fontsize=9, color=_LOW)
@@ -434,7 +433,7 @@ def construction_sheet(assessment):
     ax.set_yticks([])
     i = _ind(a, "alternation")
     n_ev = 0 if ev is None else len(ev)
-    _panel(ax, "segmentation", "feet angular velocity about Y, swings ({} events)".format(n_ev),
+    _panel(ax, "segmentation", "{} events".format(n_ev),
            a.scores.groups["segmentation"], [("alternation " + _fmt(i.quality), i.quality)], xlabel="time (s)")
     if ev is None:
         ax.text(0.5, 0.5, "no gait events\n" + str(seg.gait_events_error), transform=ax.transAxes, ha="center",
