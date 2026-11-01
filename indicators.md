@@ -145,13 +145,17 @@ Butterworth order 8, 14 Hz), which does not depend on how the sensor is mounted.
 
 ## 6. Figures
 
-`score.png`: global score in the centre, the five groups around it; the gauges of the raw, sensor
-and protocol groups are split into the four sensors (dotted quarter: sensor not provided).
-Colours: terracotta below 50, honey at 62.5, sage above 75.
+`score.png`: global score in the centre; raw data on top, sensors on the left, protocol on the
+right, U-turn bottom left, segmentation bottom right. The gauges of the raw, sensor and protocol
+groups are split into the four sensors (dotted quarter: sensor not provided); the trial-level
+part of the protocol (number of U-turns, standing time) is the "general" bar under its gauge.
+Colours: terracotta below 50, honey at 62.5, sage above 75. Below: the critical indicators and the
+indicators not assessed, with their reason.
 
-`construction.png`: one panel per family of indicators, with the score of the group and the
-quality of each indicator: (A) stream of each sensor and lost samples; (B) activity, thresholds,
-standing periods and walk; (C) $\lVert\mathbf{a}\rVert-g$ on the quietest second; (D) integrated
-angular velocity at rest (slope = bias); (E) share of the gravity per axis at rest, expected axes
-outlined; (F) energy of the walk per axis; (G) heading of the lower back and model of the U-turn;
-(H) angular velocity of the feet about $Y$ with the swing phases.
+`construction.png`: one panel per family of indicators, in the order of the groups, with the
+score of the group and the quality of each indicator: raw data (stream of each sensor, lost
+samples in black); sensors ($\lVert\mathbf{a}\rVert-g$ on the quietest second, integrated angular
+velocity at rest whose slope is the bias); protocol (activity, thresholds, standing periods and
+walk; share of the gravity per axis at rest, expected axes outlined; energy of the walk per axis);
+U-turn (heading of the lower back and of the head, model of the U-turn); segmentation (angular
+velocity of the feet about $Y$ with the swing phases).

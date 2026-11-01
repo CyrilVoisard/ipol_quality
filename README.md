@@ -77,8 +77,8 @@ the angular velocity (rad/s, deg/s or automatic).
 
 | file | content |
 |---|---|
-| `score.png` | global score surrounded by the five group scores; per-sensor quarters for the upstream groups |
-| `construction.png` | the signals behind each group: stream, phases, rest, orientation, walk, U-turn, gait events |
+| `score.png` | global score surrounded by the five group scores; per-sensor quarters for raw data, sensors and protocol, "general" bar for the trial-level part of the protocol |
+| `construction.png` | the signals behind each group, in the order of the groups: stream, rest, phases, orientation, walk, U-turn, gait events |
 | `quality.txt` | scores, per-sensor scores and critical indicators with their reason |
 | `quality.json` | every value, deviation, quality and parameter |
 | `indicators.csv` | one row per indicator and sensor |
@@ -111,14 +111,13 @@ save_figures(a, "out")
 
 ## Example data
 
-`example_datasets/` holds six trials of the public data sets (raw files and segmentation of the
-two IPOL demos):
+`example_datasets/` holds five trials of the public data sets (raw files and segmentation given by
+the two IPOL demos):
 
-- `HS_1_1`, `HS_19_1`, `PD_15_11`, `CVA_1_1`: Voisard et al., *A dataset of clinical gait signals
-  with wearable sensors from healthy, neurological, and orthopedic cohorts*, Scientific Data, 2025;
-- `LIM_HS_1_1`: AMISIA cohort (Limoges);
-- `HS_1_1_degraded`: `HS_1_1` degraded on purpose (head file removed, 1.5 s of the left foot
-  deleted), to show how a faulty recording is reported.
+- `HS_1`, `HS_2`, `PD`, `CVA` (trials HS_1_1, HS_19_1, PD_15_11 and CVA_1_1): Voisard et al., *A
+  dataset of clinical gait signals with wearable sensors from healthy, neurological, and
+  orthopedic cohorts*, Scientific Data, 2025;
+- `HS_3` (trial HS_1_1): AMISIA cohort (Limoges).
 
 ## Code organisation
 

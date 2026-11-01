@@ -27,7 +27,8 @@ from .params import FEET, GRAVITY, SENSORS
 from .segmentation import lb_heading, vertical_yaw_rate
 
 # --- palette -------------------------------------------------------------------------------
-BACKGROUND = "#fbf8f3"
+BACKGROUND = "#ffffff"           # warm alternative: "#fbf8f3"
+HALO = "#f5f2ed"
 INK, INK2, MUTED, TRACK, GRID = "#2f3142", "#6b6e80", "#b9b5ac", "#ece7df", "#e9e4dc"
 SENSOR_COLORS = {"HE": "#3a6ea5", "LB": "#c8803a", "LF": "#2a9d8f", "RF": "#a05195"}
 SENSOR_NAMES = {"HE": "head", "LB": "lower back", "LF": "left foot", "RF": "right foot"}
@@ -93,10 +94,8 @@ def _progress_ring(ax, cx, cy, r, value, lw, fontsize, label=None):
         ax.text(cx, cy - 0.33 * r - 0.08, label, ha="center", va="top", fontsize=fontsize * 0.32, color=INK2, zorder=5)
 
 
-def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize, trial=None):
-    """Ring of four arcs (one per sensor) with the group score in the centre; ``trial`` is the
-    weakest trial-level indicator of the group (name, quality), written under the score when it
-    is the one that pulls the group down."""
+def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize):
+    """Ring of four arcs (one per sensor) with the group score in the centre."""
     centres = {"HE": 135, "LB": 45, "LF": 225, "RF": 315}
     for s, c in centres.items():
         q = values.get(s)
@@ -107,21 +106,24 @@ def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize, trial=None):
         x, y = cx + (r + 0.30) * np.cos(np.radians(c)), cy + (r + 0.30) * np.sin(np.radians(c))
         ax.text(x, y, "{}\n{}".format(s, _fmt(q)), ha="center", va="center", fontsize=7.5, color=INK2,
                 linespacing=1.1, zorder=5)
-    if trial is None:
-        ax.text(cx, cy, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold", zorder=5)
-        return
-    ax.text(cx, cy + 0.09, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold",
-            zorder=5)
-    ax.text(cx, cy - 0.24, "{} {}".format(trial[0].replace("_", " "), _fmt(trial[1])), ha="center", va="center",
-            fontsize=6.8, color=quality_color(trial[1]), weight="bold", zorder=5)
+    ax.text(cx, cy, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold", zorder=5)
+
+
+def _general_bar(ax, cx, y, half, value, lw):
+    """Bar of the trial-level part of a group (e.g. "general" of the protocol), coloured by quality."""
+    if value is None:
+        ax.plot([cx - half, cx + half], [y, y], color=MUTED, lw=lw * 0.25, ls=(0, (1, 3)), dash_capstyle="round")
+    else:
+        ax.plot([cx - half, cx + half], [y, y], color=quality_color(value), lw=lw, solid_capstyle="round", zorder=2)
+    ax.text(cx, y - 0.24, "general {}".format(_fmt(value)), ha="center", va="center", fontsize=7.5, color=INK2, zorder=5)
 
 
 @styled
 def score_figure(assessment, title=None):
     """The global score in the centre, the five groups around it."""
-    sc = assessment.scores
-    crit = [i for i in assessment.indicators
-            if i.quality is not None and i.quality < assessment.params["settings"]["critical"]]
+    from .scoring import combine
+    sc, st = assessment.scores, assessment.params["settings"]
+    crit = [i for i in assessment.indicators if i.quality is not None and i.quality < st["critical"]]
     n_max = 10
     lines = []
     for i in crit[:n_max]:
@@ -139,44 +141,40 @@ def score_figure(assessment, title=None):
         lines.append("{:<14} {:<28} {:>3}   {}".format("Not assessed", what[:28], "–", reason))
 
     # vertical layout in inches: title, star, colour scale, list of the critical indicators
-    W, top, star, scale, gap, line = 8.0, 0.75, 7.15, 0.45, 0.42, 0.165
+    W, top, star, scale, gap, line = 8.0, 0.55, 7.35, 0.45, 0.42, 0.165
     H = top + star + scale + gap + line * max(len(lines), 1) + 0.3
     fig = plt.figure(figsize=(W, H), facecolor=BACKGROUND)
     ax = fig.add_axes([0.0, 1 - (top + star) / H, 1.0, star / H])
     ax.set_xlim(-4.0, 4.0)
-    ax.set_ylim(-3.7, 3.85)
+    ax.set_ylim(-3.85, 3.9)
     ax.set_aspect("equal")
     ax.axis("off")
-    fig.text(0.06, 1 - 0.33 / H, title or "Recording quality", fontsize=17, color=INK, weight="bold", va="top")
-    fig.text(0.06, 1 - 0.66 / H, assessment.trial_id, fontsize=10, color=INK2, va="top")
+    fig.text(0.06, 1 - 0.3 / H, title or "Recording quality", fontsize=17, color=INK, weight="bold", va="top")
 
-    layout = {"raw": 90, "sensor": 18, "protocol": -54, "uturn": -126, "segmentation": 162}
+    # raw data on top, sensors left, protocol right, U-turn bottom left, segmentation bottom right
+    layout = {"raw": 90, "sensor": 162, "protocol": 18, "uturn": -126, "segmentation": -54}
     R, r_sat = 2.75, 0.62
     # soft halo and spokes
-    ax.add_patch(plt.Circle((0, 0), 1.45, color="#f3ede4", zorder=0))
+    ax.add_patch(plt.Circle((0, 0), 1.45, color=HALO, zorder=0))
     for g, ang in layout.items():
         c, s = np.cos(np.radians(ang)), np.sin(np.radians(ang))
         ax.plot([1.42 * c, (R - r_sat - 0.42) * c], [1.42 * s, (R - r_sat - 0.42) * s],
                 color=quality_color(sc.groups[g]), lw=3, alpha=0.55, solid_capstyle="round", zorder=1)
-    _progress_ring(ax, 0, 0, 1.1, sc.global_score, lw=20, fontsize=44, label="global score")
+    _progress_ring(ax, 0, 0, 1.1, sc.global_score, lw=20, fontsize=44)
 
     for g, ang in layout.items():
         cx, cy = R * np.cos(np.radians(ang)), R * np.sin(np.radians(ang))
         ax.add_patch(plt.Circle((cx, cy), r_sat + 0.12, color=BACKGROUND, zorder=0.5))
         if g in ("raw", "sensor", "protocol"):
-            trial = [(i.name, i.quality) for i in assessment.indicators
-                     if i.group == g and i.sensor is None and i.quality is not None]
-            weakest = min(trial, key=lambda t: t[1]) if trial else None
-            per_sensor = [v for v in (sc.per_sensor[s][g] for s in SENSORS) if v is not None]
-            if weakest is not None and (weakest[1] >= 50 or (per_sensor and weakest[1] > min(per_sensor))):
-                weakest = None
-            _sensor_ring(ax, cx, cy, r_sat, {s: sc.per_sensor[s][g] for s in SENSORS}, sc.groups[g], lw=9, fontsize=17,
-                         trial=weakest)
+            _sensor_ring(ax, cx, cy, r_sat, {s: sc.per_sensor[s][g] for s in SENSORS}, sc.groups[g], lw=9, fontsize=17)
+            trial = [i.quality for i in assessment.indicators if i.group == g and i.sensor is None]
+            if trial:   # trial-level part of the group (protocol: number of U-turns, standing time)
+                general = combine(trial, st["aggregation"], st["critical"])
+                _general_bar(ax, cx, cy - r_sat - 0.62, 0.42, general, lw=9)
         else:
             _progress_ring(ax, cx, cy, r_sat, sc.groups[g], lw=9, fontsize=17)
-        dy = -(r_sat + 0.62) if ang < 0 or ang > 150 else r_sat + 0.62
-        if g == "raw":
-            dy = r_sat + 0.6
+        # titles: above the satellites of the upper half, below those of the lower half (aligned in pairs)
+        dy = r_sat + 0.6 if ang > 0 else -(r_sat + 0.45)
         ax.text(cx, cy + dy, GROUP_TITLES[g], ha="center", va="center", fontsize=11.5, color=INK, weight="bold")
 
     # colour scale
@@ -260,12 +258,10 @@ def construction_sheet(assessment):
     a, al, st, seg = assessment, assessment.aligned, assessment.stillness, assessment.segmentation
     freq, t, sensors = al.freq, al.time, al.sensors
     fig = plt.figure(figsize=(14, 16.5), facecolor=BACKGROUND)
+    # reading order: raw data | sensors (2 panels) | protocol (3 panels) | U-turn | segmentation
     gs = fig.add_gridspec(4, 2, height_ratios=[1, 1, 1, 1.15], hspace=0.62, wspace=0.16,
-                          left=0.06, right=0.97, top=0.885, bottom=0.04)
+                          left=0.06, right=0.97, top=0.905, bottom=0.04)
     fig.text(0.06, 0.985, "Construction of the quality score", fontsize=17, color=INK, weight="bold", va="top")
-    fig.text(0.06, 0.962, "{}   ·   global score {}   ·   {:.1f} s at {:.0f} Hz   ·   {}".format(
-        a.trial_id, _fmt(a.scores.global_score), al.n / freq, freq,
-        "; ".join(al.warnings) if al.warnings else "no warning while reading"), fontsize=9.5, color=INK2, va="top", wrap=True)
 
     # A. data stream ------------------------------------------------------------------------
     ax = fig.add_subplot(gs[0, 0])
@@ -278,17 +274,17 @@ def construction_sheet(assessment):
         ax.plot([(stats.first - al.start) / freq, (stats.last - al.start) / freq], [y, y],
                 color=SENSOR_COLORS[s], lw=9, solid_capstyle="round")
         for first, length in stats.gaps:
-            ax.plot([(first - al.start) / freq, (first + length - al.start) / freq], [y, y], color=_LOW, lw=9,
-                    solid_capstyle="butt")
+            ax.plot([(first - al.start) / freq, (first + length - al.start) / freq], [y, y], color="black", lw=9,
+                    solid_capstyle="butt", zorder=3)
         ax.annotate("{} lost".format(stats.n_missing), xy=((stats.last - al.start) / freq, y), xytext=(8, 0),
                     textcoords="offset points", va="center", fontsize=7.5, color=INK2)
     ax.set_yticks(range(len(SENSORS), 0, -1), [SENSOR_NAMES[s] for s in SENSORS])
     ax.set_ylim(0.4, len(SENSORS) + 0.6)
-    _panel(ax, "raw", "stream of each sensor (lost samples in terracotta)", a.scores.groups["raw"],
+    _panel(ax, "raw", "stream of each sensor (lost samples in black)", a.scores.groups["raw"],
            _sensor_chips(a, "raw"), xlabel="time (s)")
 
     # B. phases ---------------------------------------------------------------------------------
-    ax = fig.add_subplot(gs[0, 1])
+    ax = fig.add_subplot(gs[1, 1])
     for w, name in ((st.before, "standing"), (st.after, "standing")):
         if w is not None:
             ax.axvspan(w.start / freq, w.end / freq, color="#e3eedf", zorder=0)
@@ -309,7 +305,7 @@ def construction_sheet(assessment):
            xlabel="time (s)", ylabel="activity / threshold")
 
     # C. acceleration at rest ------------------------------------------------------------------
-    ax = fig.add_subplot(gs[1, 0])
+    ax = fig.add_subplot(gs[0, 1])
     for s in sensors:
         w = _rest_slice(a, s)
         x = np.arange(w.stop - w.start) / freq
@@ -321,7 +317,7 @@ def construction_sheet(assessment):
                                        for s in sensors], xlabel="time in the window (s)", ylabel="m/s²")
 
     # D. angular velocity at rest -------------------------------------------------------------------
-    ax = fig.add_subplot(gs[1, 1])
+    ax = fig.add_subplot(gs[1, 0])
     for s in sensors:
         w = _rest_slice(a, s)
         x = np.arange(w.stop - w.start) / freq
