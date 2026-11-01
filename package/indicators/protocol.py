@@ -21,14 +21,15 @@ Per sensor (the rest values are taken on the quietest second of the sensor, see 
 * orient_stability -- angle between the mean acceleration vectors (tilt of the sensor) of the
                       standing periods before and after the walk: the sensor must not move on
                       the body during the trial (the heading change of the U-turn does not affect
-                      it). Quality 0 when one of the two standing periods is missing: the
-                      stability cannot be verified because the protocol was not followed.
+                      it). Not assessed (left out of the scores, reason reported) when one of
+                      the two standing periods is missing: that deviation from the protocol is
+                      scored once, by still_time.
 """
 
 import numpy as np
 
 from ..params import FEET, SENSORS
-from .base import absent, impossible, make
+from .base import absent, impossible, make, not_assessed
 from .sensor import rest_window
 
 GROUP = "protocol"
@@ -99,8 +100,9 @@ def compute(aligned, stillness, segmentation, params):
 
         missing = [lab for lab, win in (("before", stillness.before), ("after", stillness.after)) if win is None]
         if missing:
-            out.append(impossible("orient_stability", GROUP, s, "deg",
-                                  "no standing period {} the walk".format(" and ".join(missing))))
+            out.append(not_assessed("orient_stability", GROUP, s, "deg",
+                                    "no standing period {} the walk (scored by still_time)".format(
+                                        " and ".join(missing))))
         else:
             g0 = np.mean(acc[rest_window(aligned, stillness, s, st, stillness.before)], axis=0)
             g1 = np.mean(acc[rest_window(aligned, stillness, s, st, stillness.after)], axis=0)

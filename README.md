@@ -26,9 +26,11 @@ groups:
 | Segmentation | are the gait events physiologically consistent? | alternation |
 
 Each indicator is a deviation from its ideal value, mapped to a quality between 0 and 100 (50 at a
-half-quality deviation). An indicator that cannot be computed because of the recording (no
-standing period after the walk, U-turn not segmented...) gets the quality 0 **and the reason**;
-only the indicators of a sensor that was not provided (head) are left out. Qualities are combined
+half-quality deviation). An indicator that cannot be computed because of the recording (U-turn
+not segmented, no gait events...) gets the quality 0 **and the reason**. Two cases are left out of
+the scores, with the reason reported: the indicators of a sensor that was not provided (head), and
+the orientation stability when a standing period is missing, since that deviation from the protocol
+is already scored by the standing time (it is not penalised twice). Qualities are combined
 per sensor and per group (mean, or minimum as soon as one element is below 50) and the global score
 is the mean of the five groups. Every definition is given in [`indicators.md`](indicators.md).
 

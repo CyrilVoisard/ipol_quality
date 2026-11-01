@@ -45,6 +45,16 @@ def to_dict(assessment):
     }
 
 
+def not_assessed(assessment):
+    """[(name, sensors, reason)] of the indicators not assessed (left out of the scores)."""
+    groups = {}
+    for i in assessment.indicators:
+        if i.quality is None and i.note.startswith("not assessed: "):
+            key = (i.name, i.note[len("not assessed: "):])
+            groups.setdefault(key, []).append(i.sensor or "")
+    return [(name, ", ".join(s for s in sensors if s), reason) for (name, reason), sensors in groups.items()]
+
+
 def text_report(assessment):
     """Short text report (displayed by the IPOL demo)."""
     sc = assessment.scores
@@ -67,6 +77,11 @@ def text_report(assessment):
         lines += ["", "Critical indicators (quality < {:.0f})".format(assessment.params["settings"]["critical"])]
         for i in crit:
             lines.append("  {:<13}{:<17}{:<4}{}  {}".format(i.group, i.name, i.sensor or "", fmt(i.quality), i.note))
+    skipped = not_assessed(assessment)
+    if skipped:
+        lines += ["", "Not assessed (left out of the scores)"]
+        for name, sensors, reason in skipped:
+            lines.append("  {:<17}{:<16}{}".format(name, sensors, reason))
     if assessment.aligned.warnings:
         lines.append("")
         lines += ["Note: " + w for w in assessment.aligned.warnings]

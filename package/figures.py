@@ -93,8 +93,10 @@ def _progress_ring(ax, cx, cy, r, value, lw, fontsize, label=None):
         ax.text(cx, cy - 0.33 * r - 0.08, label, ha="center", va="top", fontsize=fontsize * 0.32, color=INK2, zorder=5)
 
 
-def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize):
-    """Ring of four arcs (one per sensor) with the group score in the centre."""
+def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize, trial=None):
+    """Ring of four arcs (one per sensor) with the group score in the centre; ``trial`` is the
+    weakest trial-level indicator of the group (name, quality), written under the score when it
+    is the one that pulls the group down."""
     centres = {"HE": 135, "LB": 45, "LF": 225, "RF": 315}
     for s, c in centres.items():
         q = values.get(s)
@@ -105,7 +107,13 @@ def _sensor_ring(ax, cx, cy, r, values, center, lw, fontsize):
         x, y = cx + (r + 0.30) * np.cos(np.radians(c)), cy + (r + 0.30) * np.sin(np.radians(c))
         ax.text(x, y, "{}\n{}".format(s, _fmt(q)), ha="center", va="center", fontsize=7.5, color=INK2,
                 linespacing=1.1, zorder=5)
-    ax.text(cx, cy, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold", zorder=5)
+    if trial is None:
+        ax.text(cx, cy, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold", zorder=5)
+        return
+    ax.text(cx, cy + 0.09, _fmt(center), ha="center", va="center", fontsize=fontsize, color=INK, weight="bold",
+            zorder=5)
+    ax.text(cx, cy - 0.24, "{} {}".format(trial[0].replace("_", " "), _fmt(trial[1])), ha="center", va="center",
+            fontsize=6.8, color=quality_color(trial[1]), weight="bold", zorder=5)
 
 
 @styled
@@ -119,10 +127,16 @@ def score_figure(assessment, title=None):
     for i in crit[:n_max]:
         what = "{} {}".format(i.name, i.sensor or "").strip()
         why = i.note if i.note else "value {:.3g} {}".format(i.value, i.unit) if i.value is not None else ""
-        why = why if len(why) <= 68 else why[:67] + "…"
-        lines.append("{:<14} {:<22} {:>3}   {}".format(GROUP_TITLES[i.group], what, _fmt(i.quality), why))
+        why = why if len(why) <= 64 else why[:63] + "…"
+        lines.append("{:<14} {:<28} {:>3}   {}".format(GROUP_TITLES[i.group], what, _fmt(i.quality), why))
     if len(crit) > n_max:
         lines.append("… and {} more (see quality.txt)".format(len(crit) - n_max))
+    from .report import not_assessed
+    skipped = not_assessed(assessment)
+    for name, sensors, reason in skipped:
+        reason = reason if len(reason) <= 64 else reason[:63] + "…"
+        what = "{} {}".format(name, sensors.replace(", ", ",")).strip()
+        lines.append("{:<14} {:<28} {:>3}   {}".format("Not assessed", what[:28], "–", reason))
 
     # vertical layout in inches: title, star, colour scale, list of the critical indicators
     W, top, star, scale, gap, line = 8.0, 0.75, 7.15, 0.45, 0.42, 0.165
@@ -150,7 +164,14 @@ def score_figure(assessment, title=None):
         cx, cy = R * np.cos(np.radians(ang)), R * np.sin(np.radians(ang))
         ax.add_patch(plt.Circle((cx, cy), r_sat + 0.12, color=BACKGROUND, zorder=0.5))
         if g in ("raw", "sensor", "protocol"):
-            _sensor_ring(ax, cx, cy, r_sat, {s: sc.per_sensor[s][g] for s in SENSORS}, sc.groups[g], lw=9, fontsize=17)
+            trial = [(i.name, i.quality) for i in assessment.indicators
+                     if i.group == g and i.sensor is None and i.quality is not None]
+            weakest = min(trial, key=lambda t: t[1]) if trial else None
+            per_sensor = [v for v in (sc.per_sensor[s][g] for s in SENSORS) if v is not None]
+            if weakest is not None and (weakest[1] >= 50 or (per_sensor and weakest[1] > min(per_sensor))):
+                weakest = None
+            _sensor_ring(ax, cx, cy, r_sat, {s: sc.per_sensor[s][g] for s in SENSORS}, sc.groups[g], lw=9, fontsize=17,
+                         trial=weakest)
         else:
             _progress_ring(ax, cx, cy, r_sat, sc.groups[g], lw=9, fontsize=17)
         dy = -(r_sat + 0.62) if ang < 0 or ang > 150 else r_sat + 0.62
@@ -172,6 +193,8 @@ def score_figure(assessment, title=None):
 
     # critical indicators and their reasons
     head = "Critical indicators (quality < 50)" if crit else "No critical indicator"
+    if skipped:
+        head += "  ·  not assessed (left out of the scores)"
     y = 1 - (top + star + scale + 0.1) / H
     fig.text(0.06, y, head, fontsize=9.5, color=INK, weight="bold", va="top")
     fig.text(0.06, y - 0.27 / H, "\n".join(lines), fontsize=7.6, color=INK2, va="top", family="monospace",
@@ -327,7 +350,7 @@ def construction_sheet(assessment):
                         fontsize=7.5, color=INK)
             left += share[j]
         o, stab = _ind(a, "orient_rest", s), _ind(a, "orient_stability", s)
-        tilt = "Δtilt {:.1f}°".format(stab.value) if stab.value is not None else "Δtilt n/a"
+        tilt = "Δtilt {:.1f}°".format(stab.value) if stab.value is not None else "Δtilt not assessed"
         ax.text(1.02, k, "{}   {}".format("wrong sign" if o.note.startswith("gravity") else "", tilt).strip(),
                 va="center", fontsize=7.5, color=_LOW if o.note.startswith("gravity") else INK2)
     ax.set_yticks(range(len(SENSORS)), [SENSOR_NAMES[s] for s in SENSORS])

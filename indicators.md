@@ -44,7 +44,8 @@ $\delta_{50}$ are the parameters of the indicators (`params.DELTA50`).
 | situation | quality | note |
 |---|---|---|
 | computed | $g\,Q(\delta;\delta_{50})$, $g\in\{0,1\}$ a gate (orient_rest only) | explanation when low |
-| not computable because of the recording (no standing period after the walk, U-turn not segmented, no gait events, no walk detected, invalid value) | 0 | `not computable: <reason>` |
+| not computable because of the recording (U-turn not segmented, no gait events, no walk detected, invalid value) | 0 | `not computable: <reason>` |
+| not assessed because its precondition is a protocol step already scored by another indicator (orient_stability without standing period before or after the walk, scored by still_time): the same deviation is not penalised twice | none: left out of the scores, listed in the report and the figure | `not assessed: <reason>` |
 | sensor not provided (head) | none: left out of the scores | `sensor not provided` |
 
 ## 3. Aggregation
@@ -120,7 +121,7 @@ $\{X,Z\}$ for the feet):
 | orient_rest | $1-\rho_s$, $\rho_s=\sum_{k\in E_s}\bar a_{s,k}^2/\lVert\bar{\mathbf{a}}_s\rVert^2$; gate $g=0$ if $\bar a_{s,k}\le0$ for some $k\in E_s$ (sensor upside down or axes swapped) | 0.5 |
 | walk_plane_acc | share of the energy of $\mathbf{a}_s-\bar{\mathbf{a}}_s$ on $A$ along $Y$ (off the sagittal plane) | 0.5 |
 | walk_plane_gyr (feet) | $1-$ share of the energy of $\boldsymbol\omega_s$ on $A$ about $Y$ | 0.5 |
-| orient_stability | angle (deg) between the mean accelerations of the quietest seconds of the standing periods before and after the walk: the sensor did not move on the body. Not computable (0) without a standing period before or after the walk | 20 deg |
+| orient_stability | angle (deg) between the mean accelerations of the quietest seconds of the standing periods before and after the walk: the sensor did not move on the body. Not assessed without a standing period before or after the walk (that deviation is scored by still_time: e.g. 6 s before and nothing after gives still_time 90) | 20 deg |
 
 ### U-turn — is the U-turn segmentation consistent? (trial level)
 
