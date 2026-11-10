@@ -23,8 +23,9 @@ class Indicator:
     note: str = ""
 
 
-def make(name, group, sensor, value, unit, delta, params, gate=1.0, note=""):
-    """Indicator with quality gate * Q(delta) (params.quality, with the parameters of ``name``).
+def make(name, group, sensor, value, unit, delta, params, gate=1.0, note="", q=None):
+    """Indicator with quality gate * Q(delta) (params.quality, with the parameters of ``name``),
+    or gate * q when the quality ``q`` of the deviation is given (number of U-turns).
 
     A deviation that cannot be evaluated (None, NaN, infinite) gives quality 0 with the reason,
     so that the indicator is never silently left out."""
@@ -32,8 +33,10 @@ def make(name, group, sensor, value, unit, delta, params, gate=1.0, note=""):
     if d is None:
         reason = "not computable: invalid value ({})".format(delta)
         return Indicator(name, group, sensor, _num(value), unit, None, 0.0, (note + "; " if note else "") + reason)
-    q = float(gate) * quality(d, params["delta50"][name], params.get("delta100", {}).get(name, 0.0),
-                              params.get("scale", {}).get(name, "linear"))
+    if q is None:
+        q = quality(d, params["delta50"][name], params.get("delta100", {}).get(name, 0.0),
+                    params.get("scale", {}).get(name, "linear"))
+    q = float(gate) * float(q)
     return Indicator(name, group, sensor, _num(value), unit, d, q, note)
 
 

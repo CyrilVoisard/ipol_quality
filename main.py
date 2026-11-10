@@ -17,9 +17,11 @@ Inputs (raw files of the sensors, columns PacketCounter, Acc_X/Y/Z, Gyr_X/Y/Z):
 Outputs (in the current folder):
     score.png          the score at a glance
     construction.png   the signals behind every indicator
-    quality.txt        scores and critical indicators (displayed by the demo)
+    quality.txt        scores, placement and indicators at 75 or below (displayed by the demo)
     quality.json       every value, indicator and parameter (download)
     indicators.csv     one row per indicator (download)
+    corrected_XX.txt   raw file of each sensor with its axes turned into the classic frame (download),
+                       to run the U-turn and gait-event demos again when a sensor was turned
     algo_info.txt      head=0/1 (used by the demo page)
     demo_failure.txt   reason of the failure, if the trial cannot be scored
 """
@@ -31,7 +33,9 @@ import sys
 ROOT = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, ROOT)
 
+from package.params import default_params  # noqa: E402
 from package.pipeline import assess_files  # noqa: E402
+from package.placement import write_corrected  # noqa: E402
 from package.report import save_figures, write_reports  # noqa: E402
 
 
@@ -45,6 +49,9 @@ def main():
     parser.add_argument("-freq", type=float, default=100.0, help="acquisition frequency (Hz)")
     parser.add_argument("-acc_unit", default="m/s2", choices=["m/s2", "g", "auto"])
     parser.add_argument("-gyr_unit", default="rad/s", choices=["rad/s", "deg/s", "auto"])
+    parser.add_argument("-end_required", default="0", type=lambda v: str(v).strip().lower() in ("1", "true", "yes", "on"),
+                        help="1 (or true): the end of the walk must be recorded (sensors still at the end), as for "
+                             "the analysis of the last steps; a recording that ends while walking is then critical")
     args = parser.parse_args()
     out = os.getcwd()
 
@@ -58,7 +65,9 @@ def main():
         if missing:
             raise ValueError("raw file missing for: {}".format(", ".join(missing)))
         segmentation = args.i4 if exists(args.i4) else None
-        a = assess_files(files, segmentation, args.freq, trial_id="uploaded trial",
+        params = default_params()
+        params["settings"]["end_standing_required"] = bool(args.end_required)
+        a = assess_files(files, segmentation, args.freq, trial_id="uploaded trial", params=params,
                          acc_unit=args.acc_unit, gyr_unit=args.gyr_unit)
     except Exception as error:
         with open(os.path.join(out, "demo_failure.txt"), "w") as f:
@@ -66,6 +75,9 @@ def main():
         return 0
     write_reports(a, out)
     save_figures(a, out)
+    for s, p in (a.placement or {}).items():
+        if files.get(s):
+            write_corrected(files[s], p, os.path.join(out, "corrected_{}.txt".format(s)))
     return 0
 
 

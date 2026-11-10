@@ -21,7 +21,11 @@ def compute(aligned, stillness, segmentation, params):
     if u is None:
         out.append(impossible("n_uturns", GROUP, None, "-", "U-turn not segmented ({})".format(segmentation.uturn_error)))
     else:
-        out.append(make("n_uturns", GROUP, None, u.n_uturns, "-", abs(u.n_uturns - 1), params))
+        extra = abs(u.n_uturns - 1)
+        table = st["n_uturns_quality"]
+        out.append(make("n_uturns", GROUP, None, u.n_uturns, "-", extra, params,
+                        q=table[extra] if extra < len(table) else 0.0,
+                        note="{} U-turn{} counted".format(u.n_uturns, "s" if u.n_uturns != 1 else "")))
 
     # shortfall of the standing periods: the larger of the shortfall before the walk and the mean
     # shortfall of the two periods. With 4 s / 2 s and delta50 = 2 s: 4 s and 2 s give 100, 3 s and
@@ -29,20 +33,26 @@ def compute(aligned, stillness, segmentation, params):
     tb_target, ta_target = st["still_before_target"], st["still_after_target"]
     short_b = tb_target - min(stillness.t_before, tb_target)
     short_a = ta_target - min(stillness.t_after, ta_target)
+    note = "standing {:.1f} s before ({:g} s expected), {:.1f} s after ({:g} s expected)".format(
+        stillness.t_before, tb_target, stillness.t_after, ta_target)
+    # end of the walk recorded: the sensors are still at the end of the recording
+    ended = stillness.t_after > 0
+    if not ended:
+        note += "; sensors still moving at the end: the end of the walk is not recorded"
     out.append(make("still_time", GROUP, None, stillness.t_before + stillness.t_after, "s",
                     max(short_b, (short_b + short_a) / 2.0), params,
-                    note="standing {:.1f} s before ({:g} s expected), {:.1f} s after ({:g} s expected)".format(
-                        stillness.t_before, tb_target, stillness.t_after, ta_target)))
+                    gate=0.0 if st["end_standing_required"] and not ended else 1.0, note=note))
 
     # --- per sensor ----------------------------------------------------------------------------
     active = stillness.active
     walk = active.end - active.start >= 2
     off_plane = [_AXIS[k] for k in "XYZ" if k not in st["sagittal_axes"]]
     for s in SENSORS:
+        if s not in st["still_sensors"]:
+            continue    # the head: its tilt and its sway are behaviour, not a defect of the recording
         if s not in aligned.acc:
-            out += [absent("orient_rest", ORIENTATION, s, "-"), absent("walk_plane_acc", ORIENTATION, s, "-")]
-            if s in st["still_sensors"]:
-                out.append(absent("orient_stability", ORIENTATION, s, "deg"))
+            out += [absent("orient_rest", ORIENTATION, s, "-"), absent("walk_plane_acc", ORIENTATION, s, "-"),
+                    absent("orient_stability", ORIENTATION, s, "deg")]
             continue
         acc, gyr = aligned.acc[s], aligned.gyr[s]
         w = rest_window(aligned, stillness, s, st)
@@ -79,9 +89,7 @@ def compute(aligned, stillness, segmentation, params):
                 out.append(impossible("walk_plane_gyr", ORIENTATION, s, "-", "no walk detected"))
 
         missing = [lab for lab, win in (("before", stillness.before), ("after", stillness.after)) if win is None]
-        if s not in st["still_sensors"]:
-            pass        # the head may change its tilt between the start and the end (gaze)
-        elif missing:
+        if missing:
             out.append(not_assessed("orient_stability", ORIENTATION, s, "deg",
                                     "no standing period {} the walk (scored by still_time)".format(
                                         " and ".join(missing))))

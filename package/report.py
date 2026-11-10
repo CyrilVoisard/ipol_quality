@@ -7,6 +7,11 @@ from datetime import datetime
 
 from . import __version__
 from .params import SENSORS
+from .scoring import quality_class
+
+#: what each segmentation reads from the raw files of the other demos
+SEGMENTATION_SENSORS = {"LB": "the U-turn segmentation", "LF": "the gait events", "RF": "the gait events"}
+CLASS_NAMES = {"good": "good", "acceptable": "acceptable", "critical": "critical", None: ""}
 
 
 def _r(x, nd=3):
@@ -27,7 +32,9 @@ def to_dict(assessment):
         "alignment": a.aligned.alignment,
         "warnings": a.aligned.warnings,
         "scores": {"global": _r(sc.global_score, 1),
+                   "class": quality_class(sc.global_score, a.params["settings"]),
                    "groups": {g: _r(v, 1) for g, v in sc.groups.items()},
+                   "group_classes": {g: quality_class(v, a.params["settings"]) for g, v in sc.groups.items()},
                    "per_sensor": {s: {g: _r(v, 1) for g, v in sc.per_sensor[s].items()} for s in SENSORS},
                    "critical": [{"group": g, "indicator": n, "sensor": s, "quality": _r(q, 1)} for g, n, s, q in sc.critical]},
         "indicators": [{"group": i.group, "name": i.name, "sensor": i.sensor, "value": _r(i.value, 4), "unit": i.unit,
@@ -43,8 +50,28 @@ def to_dict(assessment):
         "placement": None if not a.placement else {
             s: {"rotation_deg": p.rotation, "classic": p.classic, "mapping": p.mapping(), "description": p.describe("en")}
             for s, p in a.placement.items()},
+        "placement_messages": placement_messages(a),
         "parameters": a.params,
     }
+
+
+def placement_messages(assessment):
+    """Sentences for the operator about the sensors turned in their plane: the axes were corrected
+    before the indicators, and a segmentation computed on the raw file of such a sensor by another
+    demo may be wrong."""
+    a, out = assessment, []
+    for s, p in (a.placement or {}).items():
+        if p.classic:
+            continue
+        angle = {90: "+90°", 180: "180°", 270: "-90°"}[p.rotation]
+        out.append("{} rotated by {} in its plane: axes corrected before the indicators "
+                   "(X, Y, Z = raw {})".format(s, angle, p.mapping()))
+        seg = a.segmentation
+        used = (s == "LB" and seg.uturn is not None) or (s in ("LF", "RF") and seg.gait_events is not None)
+        if used:
+            out.append("{} feeds {}: if computed on the raw file, rerun it on corrected_{}.txt".format(
+                s, SEGMENTATION_SENSORS[s], s))
+    return out
 
 
 def not_assessed(assessment):
@@ -61,12 +88,16 @@ def text_report(assessment):
     """Short text report (displayed by the IPOL demo)."""
     sc = assessment.scores
     fmt = lambda v: "   -" if v is None else "{:4.0f}".format(v)
+    st = assessment.params["settings"]
+    cls = lambda v: "  " + CLASS_NAMES[quality_class(v, st)]    # noqa: E731
     lines = ["Recording quality score -- {}".format(assessment.trial_id), "-" * 60,
-             "{:<34}{}".format("Global score", fmt(sc.global_score)), ""]
+             "{:<34}{}{}   (lowest of the six groups)".format("Global score", fmt(sc.global_score), cls(sc.global_score)),
+             "Classes: good above {:g}, acceptable above {:g} up to {:g}, critical up to {:g}".format(
+                 st["good"], st["critical"], st["good"], st["critical"]), ""]
     names = {"raw": "Raw data", "sensor": "Sensors at rest", "orientation": "Orientation (purity)",
              "protocol": "Protocol (trial)", "uturn": "U-turn segmentation", "segmentation": "Gait events segmentation"}
     for g, v in sc.groups.items():
-        lines.append("  {:<32}{}".format(names[g], fmt(v)))
+        lines.append("  {:<32}{}{}".format(names[g], fmt(v), cls(v)))
     lines += ["", "Per sensor            raw  sensor  orientation"]
     for s in SENSORS:
         p = sc.per_sensor[s]
@@ -77,13 +108,16 @@ def text_report(assessment):
     if assessment.placement:
         lines += ["", "Placement of the sensors (detected, corrected before the indicators)"]
         for s, p in assessment.placement.items():
-            lines.append("  {:<6}{}{}".format(s, p.describe("en"), "" if p.classic else
-                                               "  (classic X, Y, Z = raw {})".format(p.mapping())))
-    crit = [i for i in assessment.indicators if i.quality is not None and i.quality < assessment.params["settings"]["critical"]]
-    if crit:
-        lines += ["", "Critical indicators (quality < {:.0f})".format(assessment.params["settings"]["critical"])]
-        for i in crit:
-            lines.append("  {:<13}{:<17}{:<4}{}  {}".format(i.group, i.name, i.sensor or "", fmt(i.quality), i.note))
+            lines.append("  {:<6}{}".format(s, p.describe("en")))
+        for m in placement_messages(assessment):
+            lines.append("  " + m)
+    low = sorted([i for i in assessment.indicators if i.quality is not None and i.quality <= st["good"]],
+                 key=lambda i: i.quality)
+    if low:
+        lines += ["", "Indicators at {:g} or below (critical up to {:g})".format(st["good"], st["critical"])]
+        for i in low:
+            lines.append("  {:<13}{:<17}{:<4}{}{}  {}".format(i.group, i.name, i.sensor or "", fmt(i.quality),
+                                                            cls(i.quality), i.note))
     skipped = not_assessed(assessment)
     if skipped:
         lines += ["", "Not assessed (left out of the scores)"]

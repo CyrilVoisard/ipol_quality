@@ -14,26 +14,26 @@ REQUIRED_SENSORS = ("LB", "LF", "RF")  # the head sensor is optional
 #: Half-quality deviation of each indicator (unit of the deviation in brackets).
 DELTA50 = {
     # --- raw: integrity of the data stream (per sensor) ----------------------------
-    "missing": 10.0,            # [%] share of lost samples
+    "missing": 6.0,             # [%] share of lost samples
     "max_gap": 0.5,             # [s] longest run of lost samples
     "disconnection": 4.0,       # [%] share of the recording not covered by the sensor
     # --- sensor: behaviour at rest (per sensor) ----------------------------------------
-    "still_acc": 0.5,           # [m/s^2] | mean norm of the acceleration - g |
-    "rest_acc": 10.0,           # [%] dynamic acceleration at rest / during the walk
-    "rest_gyr": 10.0,           # [%] angular velocity at rest, offset removed / during the walk
-    "gyro_bias": 8.0,           # [deg/s] norm of the mean angular velocity at rest
-    # --- orientation: alignment of each sensor with its segment (per sensor) -----------
-    "orient_rest": 0.3,         # [-] 1 - share of gravity on the expected axes at rest
-    "walk_plane_acc": 0.5,      # [-] share of the dynamic acceleration off the sagittal plane
-    "walk_plane_gyr": 0.5,      # [-] 1 - share of the foot angular velocity about Y
-    "orient_stability": 10.0,   # [deg] tilt change of the sensor between start and end
+    "still_acc": 1.0,           # [m/s^2] | mean norm of the acceleration - g |
+    "rest_acc": 40.0,           # [%] dynamic acceleration at rest / during the walk
+    "rest_gyr": 40.0,           # [%] angular velocity at rest, offset removed / during the walk
+    "gyro_bias": 9.0,           # [deg/s] norm of the mean angular velocity at rest (trunk, feet)
+    # --- orientation: alignment of each sensor with its segment (trunk, feet) -----------
+    # only gross errors: a tilt or a sway that the gait itself explains is not a defect
+    "orient_rest": 0.8,         # [-] 1 - share of gravity on the expected axes at rest (sin^2 of the tilt)
+    "walk_plane_acc": 0.9,      # [-] share of the dynamic acceleration off the sagittal plane
+    "walk_plane_gyr": 0.9,      # [-] 1 - share of the foot angular velocity about Y
+    "orient_stability": 15.0,   # [deg] tilt change of the sensor between start and end
     # --- protocol (trial level) ------------------------------------------------------------
-    "n_uturns": 2.0,            # [-] | number of U-turns - 1 |   (-25 per extra turn)
     "still_time": 2.0,          # [s] shortfall of the standing periods (see indicators/protocol.py)
     # --- U-turn ------------------------------------------------------------------------------
-    "uturn_fit": 0.05,          # [-] 1 - R^2 of the turning model
-    "uturn_amplitude": 35.0,    # [deg] | 180 - U-turn amplitude |
-    "straight_dev": 0.5,        # [-] residual drift of the U-turn model, |C| c / |a|
+    "uturn_fit": 0.1,           # [-] 1 - R^2 of the turning model (75 at R^2 = 0.95, 50 at 0.9)
+    "uturn_amplitude": 45.0,    # [deg] | 180 - U-turn amplitude |
+    "drift_ratio": 0.2,         # [-] offset of the trunk gyroscope about the vertical / mean turning rate
     "head_trunk": 0.3,          # [-] 1 - ratio of the head and trunk turn amplitudes
     # --- segmentation ------------------------------------------------------------------------
     "alternation": 10.0,        # [%] 100 - right/left alternation of the gait events
@@ -41,14 +41,15 @@ DELTA50 = {
 
 #: Tolerance: deviation up to which the quality stays 100 (0 when not listed).
 DELTA100 = {
-    "gyro_bias": 2.0,           # an offset this small is within the specifications of the sensors
-    "walk_plane_acc": 0.25,     # 75 % of the energy of the walk in the expected plane is enough
-    "walk_plane_gyr": 0.25,
+    "gyro_bias": 3.0,           # an offset this small is within the specifications of the sensors
+    "walk_plane_acc": 0.5,      # half of the energy of the walk in the expected plane is enough
+    "walk_plane_gyr": 0.5,
+    "drift_ratio": 0.025,       # 4.5 deg added over a U-turn of 180 deg
 }
 
 #: Scale of the mapping ("linear" when not listed): "log" for a deviation that spans orders of
-#: magnitude (each doubling of the offset costs the same: 100 at 2, 75 at 4, 50 at 8 deg/s).
-SCALE = {"gyro_bias": "log"}
+#: magnitude (each doubling costs 25 points: 100 up to 0.025, 75 at 0.07, 50 at 0.2 for the drift).
+SCALE = {"drift_ratio": "log"}
 
 SETTINGS = {
     # expected axes of the gravity at rest, with a positive sign (sensor frames of the
@@ -61,9 +62,15 @@ SETTINGS = {
     # protocol: standing durations required before and after the walk (s)
     "still_before_target": 4.0,
     "still_after_target": 2.0,
+    # quality of the number of U-turns counted: 1, 2, 3 (0 beyond)
+    "n_uturns_quality": (100.0, 75.0, 50.0),
+    # True for the analyses that need the end of the walk (shape of the last steps, gait termination):
+    # a recording whose sensors still move at its end then gets still_time = 0
+    "end_standing_required": False,
     # stillness detection
-    # the head may move while standing: it is left out of the detection of the standing periods
-    # and of the indicators of movement at rest (rest_acc, rest_gyr) and of orientation stability
+    # the head may move while standing: it is left out of the detection of the standing periods,
+    # of the indicators of movement and offset at rest (rest_acc, rest_gyr, gyro_bias) and of the
+    # orientation group (its tilt and its sway are behaviour; its placement is still corrected)
     "still_sensors": ("LB", "LF", "RF"),
     "still_win": 0.5,           # [s] window of the moving standard deviation
     "still_rel": 0.10,          # activity threshold, fraction of the walking level
@@ -76,11 +83,14 @@ SETTINGS = {
     "rest_sub": 1.0,            # [s] duration of that sub-window
     # U-turn: margin around the turn for the head/trunk comparison (s)
     "head_trunk_margin": 1.0,
-    # aggregation: quality below which an element is critical, and rule of the group scores
-    # ("critical_min": mean if every element reaches the critical quality, minimum otherwise;
-    # "mean": plain mean)
+    # classes of a quality: good above "good", acceptable above "critical" up to "good", critical
+    # up to "critical"; a quality on a boundary falls in the more severe class
     "critical": 50.0,
-    "aggregation": "critical_min",
+    "good": 75.0,
+    # aggregation of the qualities into the per-sensor, group and global scores: "min" (the weakest
+    # point, the default), "critical_min" (mean if every element is above the critical quality,
+    # minimum otherwise) or "mean"
+    "aggregation": "min",
     # placement of the sensors: "detect" finds the rotation of each sensor in its plane and
     # corrects it before the indicators (reported, not scored); "fixed" assumes classic frames
     "placement": "detect",

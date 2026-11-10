@@ -73,6 +73,26 @@ def detect(aligned, stillness, settings):
     return out
 
 
+def write_corrected(path_in, placement, path_out):
+    """Copy of a raw sensor file with its Acc_*, Gyr_* (and Mag_*) columns turned into the classic
+    frame, so that the other demos (U-turn, gait events) can be run on corrected axes. The other
+    columns, the samples and the header lines are kept as they are."""
+    import pandas as pd
+    with open(path_in, "r") as f:
+        lines = f.readlines()
+    skip = next(k for k, line in enumerate(lines) if line.startswith("PacketCounter"))
+    data = pd.read_csv(path_in, sep=r"[,\t; ]+", skiprows=skip, engine="python")
+    data.columns = [str(c).strip() for c in data.columns]
+    for kind in ("Acc", "Gyr", "Mag"):
+        cols = ["{}_{}".format(kind, k) for k in "XYZ"]
+        if all(c in data.columns for c in cols):
+            values = data[cols].apply(pd.to_numeric, errors="coerce").to_numpy(float)
+            data[cols] = values @ placement.R.T
+    with open(path_out, "w") as f:
+        f.writelines(lines[:skip])
+        data.to_csv(f, sep="\t", index=False, float_format="%.9g", lineterminator="\n")
+
+
 def apply(aligned, placements):
     """Rotate the signals of the aligned trial into the classic frames (in place)."""
     for s, p in placements.items():

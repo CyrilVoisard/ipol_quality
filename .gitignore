@@ -23,4 +23,5 @@ quality.json
 indicators.csv
 algo_info.txt
 demo_failure.txt
+corrected_*.txt
 input_*

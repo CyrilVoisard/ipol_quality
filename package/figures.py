@@ -45,12 +45,12 @@ def styled(function):
 
 
 def quality_color(q):
-    """Terracotta up to 50, honey at 62.5, sage green from 75; grey if not available."""
+    """Terracotta up to 50, honey at 62.5 and 75, sage green above 75; grey if not available."""
     if q is None:
         return MUTED
     if q <= 50:
         return _LOW
-    if q >= 75:
+    if q > 75:
         return _HIGH
     u = (q - 50) / 25.0
     a, b, v = (_LOW, _MID, 2 * u) if u < 0.5 else (_MID, _HIGH, 2 * u - 1)
@@ -77,16 +77,21 @@ def _progress_ring(ax, cx, cy, r, value, lw, fontsize, label=None):
     if value is not None and value > 0.5:
         _arc(ax, cx, cy, r, 90, 90 - 3.6 * min(value, 99.7), quality_color(value), lw)
     ax.text(cx, cy, _fmt(value), ha="center", va="center", fontsize=fontsize, weight="bold", zorder=5,
-            color=_LOW if value is not None and value < 50 else INK)
+            color=_LOW if value is not None and value <= 50 else INK)
     if label:
         ax.text(cx, cy - 0.33 * r - 0.08, label, ha="center", va="top", fontsize=fontsize * 0.32, color=INK2, zorder=5)
 
 
 def _critical_lines(assessment, n_max=10):
-    """Text lines of the critical and not assessed indicators, and the heading of the list."""
+    """Text lines of the placement corrections, of the indicators at 75 or below and of the
+    indicators not assessed, and the heading of the list."""
+    from .report import placement_messages
     st = assessment.params["settings"]
-    crit = [i for i in assessment.indicators if i.quality is not None and i.quality < st["critical"]]
+    crit = sorted([i for i in assessment.indicators if i.quality is not None and i.quality <= st["good"]],
+                  key=lambda i: i.quality)
     lines = []
+    for m in placement_messages(assessment):
+        lines.append("{:<14} {}".format("Placement", m if len(m) <= 100 else m[:99] + "…"))
     for i in crit[:n_max]:
         what = "{} {}".format(i.name, i.sensor or "").strip()
         why = i.note if i.note else "value {:.3g} {}".format(i.value, i.unit) if i.value is not None else ""
@@ -100,7 +105,7 @@ def _critical_lines(assessment, n_max=10):
         reason = reason if len(reason) <= 64 else reason[:63] + "…"
         what = "{} {}".format(name, sensors.replace(", ", ",")).strip()
         lines.append("{:<14} {:<28} {:>3}   {}".format("Not assessed", what[:28], "–", reason))
-    head = "Critical indicators (quality < 50)" if crit else "No critical indicator"
+    head = "Indicators at 75 or below (critical up to 50)" if crit else "No indicator at 75 or below"
     if skipped:
         head += "  ·  not assessed (left out of the scores)"
     return head, lines
@@ -137,7 +142,7 @@ def _pill(ax, x, y, w, h, text, q, fontsize=7.6):
                                 facecolor=quality_color(q), edgecolor="none", alpha=0.95 if q is not None else 0.5,
                                 zorder=4))
     ax.text(x + w / 2, y, text, ha="center", va="center", fontsize=fontsize, weight="bold", zorder=5,
-            color=INK if q is None or q >= 50 else "white")
+            color=INK if q is None or q > 50 else "white")
 
 
 def _glyph(ax, x, y, theta, size=0.34):
@@ -172,7 +177,7 @@ def _body(ax, cx, y0, k):
                                 facecolor=SKIN, edgecolor="none", zorder=1))
     ax.add_patch(FancyBboxPatch(P(0.05, 0.0), k * 1.4, k * 0.6, boxstyle="round,pad=0,rounding_size={}".format(k * 0.3),
                                 facecolor=SKIN, edgecolor="none", zorder=1))
-    return {"HE": P(0, 10.65), "LB": P(0, 5.9), "LF": P(-0.75, 0.3), "RF": P(0.75, 0.3)}
+    return {"HE": P(0, 10.65), "LB": P(0, 7.0), "LF": P(-0.75, 0.3), "RF": P(0.75, 0.3)}
 
 
 def _sensor_card(ax, x, y, s, assessment, w=2.25, h=1.02):
@@ -206,7 +211,8 @@ def _sensor_card(ax, x, y, s, assessment, w=2.25, h=1.02):
 def score_figure(assessment, title=None):
     """Score at a glance. Left: the four sensors on a schematic body seen from the back
     (placement detected and corrected, scores of the raw data, of the rest and of the orientation of
-    each sensor). Centre: the three sensor-level groups, the global score (mean of the six groups) and
+    each sensor). Centre: the three sensor-level groups, the global score (the lowest of the six
+    groups) and
     the three trial-level groups (protocol, U-turn, segmentation)."""
     sc = assessment.scores
     head, lines = _critical_lines(assessment)
@@ -243,7 +249,10 @@ def score_figure(assessment, title=None):
     ys = (5.75, 3.55, 1.35)
     ax.add_patch(plt.Circle((gx, gy), 1.38, color=HALO, zorder=0))
     _progress_ring(ax, gx, gy, 1.05, sc.global_score, lw=19, fontsize=42)
-    ax.text(gx, gy - 1.62, "mean of the six groups", ha="center", va="center", fontsize=8, color=INK2)
+    from .scoring import quality_class
+    klass = quality_class(sc.global_score, assessment.params["settings"])
+    ax.text(gx, gy - 1.62, "{}lowest of the six groups".format(klass + "  ·  " if klass else ""), ha="center",
+            va="center", fontsize=8.5, color=INK2)
     ax.text(lx, main - 0.25, "All sensors", ha="center", fontsize=12, weight="bold", color=INK)
     ax.text(tx, main - 0.25, "Trial", ha="center", fontsize=12, weight="bold", color=INK)
     for column, x0, side in (((("raw", "Raw data"), ("sensor", "At rest"), ("orientation", "Orientation")), lx, -1),
@@ -280,7 +289,7 @@ def _chips(ax, items):
         w = 4.35 * len(text) + 9.0                      # points
         ax.annotate(text, xy=(0, 1), xycoords="axes fraction", xytext=(x + w / 2, 9), textcoords="offset points",
                     ha="center", va="center", fontsize=7, weight="bold", annotation_clip=False,
-                    color=INK if q is None or q >= 50 else "white",
+                    color=INK if q is None or q > 50 else "white",
                     bbox=dict(boxstyle="round,pad=0.32,rounding_size=0.75", facecolor=quality_color(q),
                               edgecolor="none", alpha=0.9 if q is not None else 0.5))
         x += w + 5.0
@@ -390,11 +399,16 @@ def construction_sheet(assessment):
     for s in sensors:
         w = _rest_slice(a, s)
         x = np.arange(w.stop - w.start) / freq
+        bias = np.degrees(np.linalg.norm(np.mean(al.gyr[s][w], axis=0)))
         ax.plot(x, np.degrees(np.cumsum(al.gyr[s][w], axis=0) / freq) @ np.ones(3) / np.sqrt(3), color=SENSOR_COLORS[s],
-                lw=1.1, label="{}  {:.2f}°/s".format(s, _ind(a, "gyro_bias", s).value or 0))
+                lw=1.1, label="{}  {:.2f}°/s".format(s, bias))
     ax.legend(fontsize=7, frameon=False, ncol=2, loc="upper left")
-    _panel(ax, "sensor", "integrated angular velocity at rest (slope = bias)", a.scores.groups["sensor"],
-           [("bias {} {}".format(s, _fmt(_ind(a, "gyro_bias", s).quality)), _ind(a, "gyro_bias", s).quality) for s in sensors],
+    chips = []
+    for s in sensors:
+        i = _ind(a, "gyro_bias", s)
+        chips.append(("bias {} not scored".format(s), None) if i is None else
+                     ("bias {} {}".format(s, _fmt(i.quality)), i.quality))
+    _panel(ax, "sensor", "integrated angular velocity at rest (slope = bias)", a.scores.groups["sensor"], chips,
            xlabel="time in the window (s)", ylabel="deg")
 
     # E. orientation at rest, placement detected ------------------------------------------------------
@@ -416,7 +430,7 @@ def construction_sheet(assessment):
             left += share[j]
         o, stab = _ind(a, "orient_rest", s), _ind(a, "orient_stability", s)
         p = (a.placement or {}).get(s)
-        if o.note.startswith("gravity along -"):
+        if o is not None and o.note.startswith("gravity along -"):
             where, color = "wrong sign", _LOW
         elif p is None:
             where, color = "frame assumed classic", INK2
@@ -425,7 +439,7 @@ def construction_sheet(assessment):
         else:
             where, color = "rotated {}, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation]), "#a7752a"
         tilt = "Δtilt {:.1f}°".format(stab.value) if stab is not None and stab.value is not None else \
-            "Δtilt –" if stab is not None else "Δtilt not scored (head)"
+            "Δtilt –" if stab is not None else "orientation not scored (head)"
         ax.text(1.03, k, where, va="center", fontsize=7.5, color=color)
         ax.text(1.03, k + 0.32, tilt, va="center", fontsize=6.8, color=INK2)
     ax.set_yticks(range(len(SENSORS)), [SENSOR_NAMES[s] for s in SENSORS])
@@ -459,41 +473,71 @@ def construction_sheet(assessment):
     ax.set_yticks(range(len(labels)), labels)
     ax.invert_yaxis()
     ax.set_xlim(0, 1)
-    chips = [("acc {} {}".format(s, _fmt(_ind(a, "walk_plane_acc", s).quality)), _ind(a, "walk_plane_acc", s).quality) for s in sensors]
+    chips = [("acc {} {}".format(s, _fmt(_ind(a, "walk_plane_acc", s).quality)), _ind(a, "walk_plane_acc", s).quality)
+             for s in sensors if _ind(a, "walk_plane_acc", s) is not None]
     chips += [("rot {} {}".format(s, _fmt(_ind(a, "walk_plane_gyr", s).quality)), _ind(a, "walk_plane_gyr", s).quality) for s in FEET]
     _panel(ax, "orientation", "energy of the walk per axis (expected axes outlined)", a.scores.groups["orientation"], chips,
            xlabel="share of the energy")
 
     # G. U-turn -------------------------------------------------------------------------------------------
     ax = fig.add_subplot(col_t[1])
-    u = seg.uturn
     chips = [(lab + " " + _fmt(_ind(a, n).quality), _ind(a, n).quality)
-             for lab, n in (("fit", "uturn_fit"), ("amplitude", "uturn_amplitude"), ("residual drift", "straight_dev"),
+             for lab, n in (("fit", "uturn_fit"), ("amplitude", "uturn_amplitude"), ("drift", "drift_ratio"),
                             ("head/trunk", "head_trunk"))]
-    if u is not None:
-        theta, model = lb_heading(al, u)
-        ax.axvspan(u.start / freq, u.end / freq, color="#f6efe3", zorder=0)
-        ax.plot(t, theta, color=SENSOR_COLORS["LB"], lw=1.4, label="lower back (model input)")
-        if "HE" in al.acc:
-            yaw_he = vertical_yaw_rate(al, "HE", _rest_slice(a, "HE"))
-            yaw_lb = vertical_yaw_rate(al, "LB", _rest_slice(a, "LB"))
-            sign = np.sign(np.sum(yaw_lb[u.start:u.end]) * (theta[min(u.end, al.n - 1)] - theta[max(u.start, 0)])) or 1
-            th = sign * np.cumsum(yaw_he) / freq
-            th = th - np.median(th[max(u.start - int(freq), 0):max(u.start, 1)]) + np.median(theta[max(u.start - int(freq), 0):max(u.start, 1)])
-            ax.plot(t, th, color=SENSOR_COLORS["HE"], lw=1.1, label="head (about the vertical)")
-        ax.plot(np.arange(*u.fit_window[:2]) / freq if len(model) == u.fit_window[1] - u.fit_window[0] else
-                np.arange(len(model)) / freq + max(u.fit_window[0], 0) / freq, model, color=INK, lw=1.3, ls="--", label="fitted model")
-        for b in (u.start, u.end):
-            ax.axvline(b / freq, color=INK, lw=0.8)
-        ax.legend(fontsize=7, frameon=False, loc="lower right")
-    else:
-        ax.text(0.5, 0.5, "U-turn not segmented\n" + str(seg.uturn_error), transform=ax.transAxes, ha="center",
-                va="center", fontsize=9, color=_LOW)
+    draw_uturn(ax, a)
     _panel(ax, "uturn", "", a.scores.groups["uturn"], chips, xlabel="time (s)", ylabel="deg")
 
     # H. gait events ---------------------------------------------------------------------------------------
     ax = fig.add_subplot(col_t[2])
-    ev = seg.gait_events
+    i = _ind(a, "alternation")
+    n_ev = 0 if seg.gait_events is None else len(seg.gait_events)
+    draw_gait_events(ax, a)
+    _panel(ax, "segmentation", "{} events".format(n_ev),
+           a.scores.groups["segmentation"], [("alternation " + _fmt(i.quality), i.quality)], xlabel="time (s)")
+    return fig
+
+
+_LABELS = {
+    "en": {"lb": "lower back (model input)", "he": "head (about the vertical)", "model": "fitted model",
+           "no_uturn": "U-turn not segmented", "no_events": "no gait events"},
+    "fr": {"lb": "tronc (entrée du modèle)", "he": "tête (autour de la verticale)", "model": "modèle ajusté",
+           "no_uturn": "demi-tour non segmenté", "no_events": "pas d'événements de marche"},
+}
+
+
+def draw_uturn(ax, assessment, lang="en"):
+    """Heading of the lower back (input of the U-turn model) and of the head, fitted model and
+    boundaries of the U-turn (no quality value)."""
+    a, al, seg = assessment, assessment.aligned, assessment.segmentation
+    freq, t, u, lab = al.freq, al.time, seg.uturn, _LABELS[lang]
+    if u is None:
+        ax.text(0.5, 0.5, "{}\n{}".format(lab["no_uturn"], seg.uturn_error), transform=ax.transAxes, ha="center",
+                va="center", fontsize=9, color=_LOW)
+        return
+    theta, model = lb_heading(al, u)
+    ax.axvspan(u.start / freq, u.end / freq, color="#f6efe3", zorder=0)
+    ax.plot(t, theta, color=SENSOR_COLORS["LB"], lw=1.4, label=lab["lb"])
+    if "HE" in al.acc:
+        yaw_he = vertical_yaw_rate(al, "HE", _rest_slice(a, "HE"))
+        yaw_lb = vertical_yaw_rate(al, "LB", _rest_slice(a, "LB"))
+        sign = np.sign(np.sum(yaw_lb[u.start:u.end]) * (theta[min(u.end, al.n - 1)] - theta[max(u.start, 0)])) or 1
+        th = sign * np.cumsum(yaw_he) / freq
+        before = slice(max(u.start - int(freq), 0), max(u.start, 1))
+        th = th - np.median(th[before]) + np.median(theta[before])
+        ax.plot(t, th, color=SENSOR_COLORS["HE"], lw=1.1, label=lab["he"])
+    x = (np.arange(*u.fit_window[:2]) if len(model) == u.fit_window[1] - u.fit_window[0]
+         else np.arange(len(model)) + max(u.fit_window[0], 0)) / freq
+    ax.plot(x, model, color=INK, lw=1.3, ls="--", label=lab["model"])
+    for b in (u.start, u.end):
+        ax.axvline(b / freq, color=INK, lw=0.8)
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
+
+
+def draw_gait_events(ax, assessment, lang="en"):
+    """Angular velocity of the feet about their medio-lateral axis, with the swing phases (toe-off to
+    heel strike) found by the segmentation (no quality value)."""
+    al, seg = assessment.aligned, assessment.segmentation
+    freq, t, ev, u = al.freq, al.time, seg.gait_events, seg.uturn
     offset = {0: 0.0, 1: -1.0}
     for foot, s in ((0, "LF"), (1, "RF")):
         gy = np.degrees(al.gyr[s][:, 1])
@@ -509,11 +553,6 @@ def construction_sheet(assessment):
         ax.axvspan(u.start / freq, u.end / freq, color="#f6efe3", zorder=0)
     ax.set_ylim(-1.5, 0.5)
     ax.set_yticks([])
-    i = _ind(a, "alternation")
-    n_ev = 0 if ev is None else len(ev)
-    _panel(ax, "segmentation", "{} events".format(n_ev),
-           a.scores.groups["segmentation"], [("alternation " + _fmt(i.quality), i.quality)], xlabel="time (s)")
     if ev is None:
-        ax.text(0.5, 0.5, "no gait events\n" + str(seg.gait_events_error), transform=ax.transAxes, ha="center",
-                va="center", fontsize=9, color=_LOW)
-    return fig
+        ax.text(0.5, 0.5, "{}\n{}".format(_LABELS[lang]["no_events"], seg.gait_events_error), transform=ax.transAxes,
+                ha="center", va="center", fontsize=9, color=_LOW)
