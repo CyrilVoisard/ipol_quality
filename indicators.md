@@ -54,10 +54,9 @@ percentile, so that 95 % of the reference keeps at least 75. It is then adjusted
 processing needs: a defect that the usual pre-processing corrects without effect on the
 algorithms is tolerated (stable gyroscope offset, scale error of the accelerometer, isolated lost
 samples, sensor turned in its plane), a defect that changes what the algorithms see is scored.
-Finally, a blinded expert rating of 197 recordings of the public data set (development set) showed
-where the score was stricter than the expert on defects without consequence; the thresholds of the
-movement and offset at rest, of the norm of the acceleration, of the tilt and of the plane of the
-walk were relaxed accordingly (`local/annotation/PROTOCOLE.md`).
+The tolerance of the defects without consequence (movement and offset at rest, norm of the
+acceleration, tilt, plane of the walk) follows the judgement of an expert of instrumented gait
+analysis, from a blinded rating of recordings of the public data set (companion study).
 
 **Classes.** A quality is *good* above 75, *acceptable* above 50 up to 75, *critical* up to 50: a
 value on a boundary falls in the more severe class (`scoring.quality_class`, `settings["good"]`,
@@ -75,13 +74,11 @@ at best) are thus acceptable, not good.
 
 ## 3. Aggregation
 
-Rule $\mathrm{agg}$ (`scoring.py`, `settings["aggregation"]`): the minimum of the qualities ("min",
-the default). A recording is as good as its weakest point: one failing element (a sensor upside
-down, a long gap on one sensor) cannot be hidden by the others, and one indicator at 75 or below
-makes its group, and the recording, at best acceptable. This is how the expert rated the
-recordings (global class = worst group class in every case). The former rule, mean of the
-qualities unless one of them is critical ("critical_min"), and the plain mean ("mean") remain
-available.
+Rule $\mathrm{agg}$ (`scoring.combine`): the minimum of the qualities. A recording is as good as
+its weakest point: one failing element (a sensor upside down, a long gap on one sensor) cannot be
+hidden by the others, and one indicator at 75 or below makes its group, and the recording, at
+best acceptable. This is also how the expert rates a recording: its class is the worst class of
+its groups.
 
 - per sensor, for the groups raw, sensor and orientation: $\mathrm{agg}$ of the qualities of the
   indicators of the sensor (cards of `score.png`);

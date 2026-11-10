@@ -85,12 +85,9 @@ SETTINGS = {
     "head_trunk_margin": 1.0,
     # classes of a quality: good above "good", acceptable above "critical" up to "good", critical
     # up to "critical"; a quality on a boundary falls in the more severe class
+    # (the per-sensor, group and global scores are the minimum of what they contain: scoring.py)
     "critical": 50.0,
     "good": 75.0,
-    # aggregation of the qualities into the per-sensor, group and global scores: "min" (the weakest
-    # point, the default), "critical_min" (mean if every element is above the critical quality,
-    # minimum otherwise) or "mean"
-    "aggregation": "min",
     # placement of the sensors: "detect" finds the rotation of each sensor in its plane and
     # corrects it before the indicators (reported, not scored); "fixed" assumes classic frames
     "placement": "detect",

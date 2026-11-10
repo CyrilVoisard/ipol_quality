@@ -128,13 +128,16 @@ save_figures(a, "out")
 
 ## Example data
 
-`example_datasets/` holds five trials of the public data sets (raw files and segmentation given by
-the two IPOL demos):
+`example_datasets/` holds four trials of the public data set (Voisard et al., *A dataset of
+clinical gait signals with wearable sensors from healthy, neurological, and orthopedic cohorts*,
+Scientific Data, 2025), with the segmentation given by the two IPOL demos:
 
-- `HS_1`, `HS_2`, `PD`, `CVA` (trials HS_1_1, HS_19_1, PD_15_11 and CVA_1_1): Voisard et al., *A
-  dataset of clinical gait signals with wearable sensors from healthy, neurological, and
-  orthopedic cohorts*, Scientific Data, 2025;
-- `HS_3` (trial HS_1_1): AMISIA cohort (Limoges).
+| example | trial | global score |
+|---|---|---|
+| `1_healthy_good` | HS_58_2, healthy subject (XSens) | 87, good |
+| `2_patient_good` | PD_20_1, Parkinson's disease (TechnoConcept) | 90, good |
+| `3_healthy_acceptable` | HS_54_2, healthy subject (XSens) | 70, acceptable: short standing periods (protocol 70) and head–trunk coordination of the U-turn (73) |
+| `4_healthy_critical` | HS_48_4, healthy subject (TechnoConcept) | 21, critical: end of the walk not recorded (protocol 21) and gyroscope offset of the left foot (sensors 32); gait events normal |
 
 ## Code organisation
 

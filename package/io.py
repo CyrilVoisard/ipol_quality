@@ -70,15 +70,37 @@ def iter_trial_dirs(root):
     return sorted(found)
 
 
+def header_row(path):
+    """Index of the line of the column names (the one that starts with PacketCounter); a byte-order
+    mark, spaces and quotes before it are ignored. Raises a ValueError that says what the file looks
+    like when there is none (an empty file, a JSON or an image given in place of a sensor file)."""
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as file_id:
+        for skip, line in enumerate(file_id):
+            if line.lstrip(" \t\"'﻿").startswith("PacketCounter"):
+                return skip
+    raise ValueError("the column 'PacketCounter' was not found in {}: {}".format(os.path.basename(path),
+                                                                                 describe_file(path)))
+
+
+def describe_file(path):
+    """What a file that is not a sensor file looks like, in a few words."""
+    with open(path, "rb") as f:
+        head = f.read(4096)
+    if not head.strip():
+        return "the file is empty"
+    if head.startswith(b"\x89PNG") or head[:3] == b"\xff\xd8\xff":
+        return "it is an image (a thumbnail given in place of a sensor file?)"
+    if head.lstrip(b"\xef\xbb\xbf \t\r\n").startswith((b"{", b"[")):
+        return "it is a JSON file (the segmentation file given in place of a sensor file?)"
+    first = head.decode("utf-8", "replace").lstrip("﻿").splitlines()[0].strip()
+    return "its first line is '{}'".format(first[:80] + ("..." if len(first) > 80 else ""))
+
+
 def read_sensor_file(path):
     """Read a raw sensor file. Returns a DataFrame with PacketCounter, Acc_* and Gyr_* columns."""
-    with open(path, "r") as file_id:
-        for skip, line in enumerate(file_id):
-            if line.startswith("PacketCounter"):
-                break
-        else:
-            raise ValueError("the column 'PacketCounter' was not found in {}".format(os.path.basename(path)))
-    data = pd.read_csv(path, sep=r"[,\t; ]+", skiprows=skip, engine="python")
+    skip = header_row(path)
+    data = pd.read_csv(path, sep=r"[,\t; ]+", skiprows=skip, engine="python", encoding="utf-8-sig",
+                       encoding_errors="replace")
     data.columns = [str(c).strip() for c in data.columns]
     required = ("PacketCounter",) + ACC_COLS + GYR_COLS
     absent = [c for c in required if c not in data.columns]

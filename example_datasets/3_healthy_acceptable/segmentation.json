@@ -1,0 +1,132 @@
+{
+ "uturn": {
+  "DetectionDate": "2026-11-01 02:23:25.564177",
+  "Freq": 100.0,
+  "TrialDuration_s": 14.32,
+  "UturnBoundaries": [
+   716,
+   935
+  ],
+  "UturnBoundaries_s": [
+   7.16,
+   9.35
+  ],
+  "UturnDuration_s": 2.19,
+  "UturnAmplitude_deg": 178.9,
+  "UturnDirection": "left",
+  "PeakAngularVelocity_dps": 196.1,
+  "Indicators": {
+   "R2": 0.9926,
+   "UTurns": 1,
+   "SignChanges": 1,
+   "BoundariesInsideWindow": true,
+   "Drift_dps": -0.153
+  },
+  "FitWindow": [
+   328,
+   1186
+  ],
+  "ModelParameters": {
+   "a_deg": 178.9238441977185,
+   "b_sample": 825.0340573258464,
+   "c_samples": 219.00705310944102,
+   "C_deg_per_sample": 0.0007372831261253727
+  },
+  "Parameters": {
+   "FILTER_ORDER": 8,
+   "FILTER_FC": 14.0,
+   "Q_LOW": 0.15,
+   "Q_HIGH": 0.85,
+   "SIDE_FRAC": 0.6,
+   "A0_DEG": 180.0,
+   "C0_S": 3.0,
+   "C_MAX_DPS": 1.0,
+   "HYSTERESIS_DEG": 45.0,
+   "GYR_UNIT": "rad/s"
+  }
+ },
+ "gait_events": {
+  "Detection date": "2026-11-01 02:23:26.826519",
+  "Freq": 100.0,
+  "LeftFootEvents": [
+   [
+    388,
+    431
+   ],
+   [
+    488,
+    529
+   ],
+   [
+    585,
+    626
+   ],
+   [
+    683,
+    727
+   ],
+   [
+    823,
+    873
+   ],
+   [
+    945,
+    989
+   ],
+   [
+    1045,
+    1087
+   ],
+   [
+    1143,
+    1186
+   ],
+   [
+    1243,
+    1290
+   ]
+  ],
+  "RightFootEvents": [
+   [
+    324,
+    374
+   ],
+   [
+    439,
+    480
+   ],
+   [
+    537,
+    577
+   ],
+   [
+    633,
+    674
+   ],
+   [
+    736,
+    780
+   ],
+   [
+    883,
+    935
+   ],
+   [
+    995,
+    1037
+   ],
+   [
+    1094,
+    1135
+   ],
+   [
+    1193,
+    1234
+   ],
+   [
+    1300,
+    1337
+   ]
+  ]
+ }
+}

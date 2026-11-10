@@ -11,15 +11,19 @@ from matplotlib import font_manager
 from matplotlib.patches import FancyBboxPatch
 
 from .params import FEET, GRAVITY, SENSORS
+from .scoring import combine
 from .segmentation import lb_heading, vertical_yaw_rate
 
 # --- palette -------------------------------------------------------------------------------
 BACKGROUND = "#ffffff"           # warm alternative: "#fbf8f3"
 HALO = "#f5f2ed"
 INK, INK2, MUTED, TRACK, GRID = "#2f3142", "#6b6e80", "#b9b5ac", "#ece7df", "#e9e4dc"
-SENSOR_COLORS = {"HE": "#3a6ea5", "LB": "#c8803a", "LF": "#2a9d8f", "RF": "#a05195"}
+# one colour per sensor, kept away from the three quality colours (terracotta, honey, sage green)
+# and used in every figure; on the body, the ring round a sensor takes the colour of its quality
+SENSOR_COLORS = {"HE": "#3f63b5", "LB": "#7a52ab", "LF": "#1e93ad", "RF": "#b0478a"}
 SENSOR_NAMES = {"HE": "head", "LB": "lower back", "LF": "left foot", "RF": "right foot"}
-AXIS_COLORS = {"X": "#9fb7cc", "Y": "#e3a99a", "Z": "#b8cba0"}
+# axes in greys, so that only the qualities are in colour
+AXIS_COLORS = {"X": "#c3cbd4", "Y": "#e1e5ea", "Z": "#a5b0bd"}
 _LOW, _MID, _HIGH = "#e07a5f", "#f2c14e", "#6ab187"
 GROUP_TITLES = {"raw": "Raw data", "sensor": "Sensors", "orientation": "Orientation", "protocol": "Protocol",
                 "uturn": "U-turn", "segmentation": "Segmentation"}
@@ -45,16 +49,16 @@ def styled(function):
 
 
 def quality_color(q):
-    """Terracotta up to 50, honey at 62.5 and 75, sage green above 75; grey if not available."""
+    """Colour of the class of a quality: terracotta up to 50 (critical), from a terracotta-honey
+    mix to honey above 50 up to 75 (acceptable), sage green above 75 (good); grey if not available."""
     if q is None:
         return MUTED
     if q <= 50:
         return _LOW
     if q > 75:
         return _HIGH
-    u = (q - 50) / 25.0
-    a, b, v = (_LOW, _MID, 2 * u) if u < 0.5 else (_MID, _HIGH, 2 * u - 1)
-    return tuple((1 - v) * np.array(mcolors.to_rgb(a)) + v * np.array(mcolors.to_rgb(b)))
+    v = 0.5 + 0.5 * (q - 50) / 25.0
+    return tuple((1 - v) * np.array(mcolors.to_rgb(_LOW)) + v * np.array(mcolors.to_rgb(_MID)))
 
 
 def _fmt(q):
@@ -193,13 +197,14 @@ def _sensor_card(ax, x, y, s, assessment, w=2.25, h=1.02):
         ax.text(x + 0.18, y - 0.12, "not provided", fontsize=8, color=MUTED, va="center", zorder=5)
         return
     p = (assessment.placement or {}).get(s)
+    # the placement is reported, not scored: neutral colours, not those of the quality
     if p is None:
         status, color = "frame assumed classic", INK2
     elif p.classic:
-        status, color = "classic placement", "#3f8a5f"
+        status, color = "classic placement", INK2
     else:
         status = "rotated {} in its plane, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation])
-        color = "#a7752a"
+        color = INK
     ax.text(x + 0.18, y + h / 2 - 0.45, status, fontsize=7.4, color=color, va="center", zorder=5)
     pw, gap = 0.62, 0.07
     for k, (g, label) in enumerate((("raw", "raw"), ("sensor", "rest"), ("orientation", "orient."))):
@@ -238,7 +243,11 @@ def score_figure(assessment, title=None):
         ax.plot([x, anchor[0]], [y, anchor[1]], color=SENSOR_COLORS[s], lw=1.0, alpha=0.6, zorder=2)
         if s in assessment.aligned.acc:
             p = (assessment.placement or {}).get(s)
-            ax.add_patch(plt.Circle((x, y), 0.36, color=SENSOR_COLORS[s], alpha=0.18, zorder=2))
+            # disc in the colour of the sensor, ring in the colour of its quality (the lowest of its
+            # raw data, rest and orientation scores)
+            q = combine([sc.per_sensor[s][g] for g in ("raw", "sensor", "orientation")])
+            ax.add_patch(plt.Circle((x, y), 0.36, color=SENSOR_COLORS[s], alpha=0.22, lw=0, zorder=2))
+            ax.add_patch(plt.Circle((x, y), 0.36, facecolor="none", edgecolor=quality_color(q), lw=3.2, zorder=2.5))
             _glyph(ax, x, y, p.rotation if p is not None else 0)
         else:
             ax.add_patch(plt.Circle((x, y), 0.25, facecolor="white", edgecolor=MUTED, ls=(0, (1, 2)), zorder=2))
@@ -365,7 +374,7 @@ def construction_sheet(assessment):
     ax = fig.add_subplot(col_t[0])
     for w, name in ((st.before, "standing"), (st.after, "standing")):
         if w is not None:
-            ax.axvspan(w.start / freq, w.end / freq, color="#e3eedf", zorder=0)
+            ax.axvspan(w.start / freq, w.end / freq, color="#e6eaf0", zorder=0)
             ax.text((w.start + w.end) / 2 / freq, 0.93, name, transform=ax.get_xaxis_transform(), ha="center",
                     fontsize=7.5, color=INK2)
     ax.axvspan(st.active.start / freq, st.active.end / freq, color="#f6efe3", zorder=0)
@@ -373,7 +382,7 @@ def construction_sheet(assessment):
             ha="center", fontsize=7.5, color=INK2)
     ax.plot(t, st.activity_acc / st.threshold_acc, color=INK, lw=1, label="acceleration")
     ax.plot(t, st.activity_gyr / st.threshold_gyr, color=INK2, lw=1, ls="--", label="angular velocity")
-    ax.axhline(1, color=_LOW, lw=0.9)
+    ax.axhline(1, color=INK2, lw=0.9, ls=":")
     ax.set_yscale("log")
     ax.legend(fontsize=7, frameon=False, loc="lower center", ncol=2)
     i = _ind(a, "still_time")
@@ -435,9 +444,9 @@ def construction_sheet(assessment):
         elif p is None:
             where, color = "frame assumed classic", INK2
         elif p.classic:
-            where, color = "classic placement", "#3f8a5f"
+            where, color = "classic placement", INK2
         else:
-            where, color = "rotated {}, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation]), "#a7752a"
+            where, color = "rotated {}, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation]), INK
         tilt = "Δtilt {:.1f}°".format(stab.value) if stab is not None and stab.value is not None else \
             "Δtilt –" if stab is not None else "orientation not scored (head)"
         ax.text(1.03, k, where, va="center", fontsize=7.5, color=color)

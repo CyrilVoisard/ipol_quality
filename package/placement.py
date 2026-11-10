@@ -78,10 +78,12 @@ def write_corrected(path_in, placement, path_out):
     frame, so that the other demos (U-turn, gait events) can be run on corrected axes. The other
     columns, the samples and the header lines are kept as they are."""
     import pandas as pd
-    with open(path_in, "r") as f:
+    from .io import header_row
+    with open(path_in, "r", encoding="utf-8-sig", errors="replace") as f:
         lines = f.readlines()
-    skip = next(k for k, line in enumerate(lines) if line.startswith("PacketCounter"))
-    data = pd.read_csv(path_in, sep=r"[,\t; ]+", skiprows=skip, engine="python")
+    skip = header_row(path_in)
+    data = pd.read_csv(path_in, sep=r"[,\t; ]+", skiprows=skip, engine="python", encoding="utf-8-sig",
+                       encoding_errors="replace")
     data.columns = [str(c).strip() for c in data.columns]
     for kind in ("Acc", "Gyr", "Mag"):
         cols = ["{}_{}".format(kind, k) for k in "XYZ"]
