@@ -81,7 +81,8 @@ SETTINGS = {
     "still_min_duration": 0.3,  # [s] minimal duration of a usable still window
     # sensor indicators: computed, for each sensor, on its quietest sub-window of the rest window
     "rest_sub": 1.0,            # [s] duration of that sub-window
-    # U-turn: margin around the turn for the head/trunk comparison (s)
+    # U-turn: window before and after the turn over which the heading is averaged for the
+    # head/trunk comparison (s, about a stride)
     "head_trunk_margin": 1.0,
     # classes of a quality: good above "good", acceptable above "critical" up to "good", critical
     # up to "critical"; a quality on a boundary falls in the more severe class
@@ -91,6 +92,17 @@ SETTINGS = {
     # placement of the sensors: "detect" finds the rotation of each sensor in its plane and
     # corrects it before the indicators (reported, not scored); "fixed" assumes classic frames
     "placement": "detect",
+    # alignment of the trunk on the vertical in the corrected files (corrected_XX.txt), which feed the
+    # U-turn, gait-event and gait-parameter algorithms (they assume X vertical for the lower back):
+    # the X axis of these sensors is brought onto the vertical by the smallest rotation (Rodrigues).
+    # The vertical is the mean acceleration over the walk ("walk": the posture that the algorithms
+    # analyse) or over the quietest second at rest ("rest"). The indicators are computed before this
+    # rotation: orient_rest keeps the tilt as recorded and orient_stability tells whether the sensor
+    # stayed in place, i.e. whether a single rotation holds for the whole trial.
+    "tilt_sensors": ("LB",),
+    "tilt_reference": "walk",
+    "tilt_report_deg": 10.0,    # [deg] tilt from which the correction is reported to the operator
+    "tilt_max_deg": 75.0,       # [deg] no alignment beyond (sensor on another face: orient_rest)
 }
 
 

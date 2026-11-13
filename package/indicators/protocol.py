@@ -65,6 +65,11 @@ def compute(aligned, stillness, segmentation, params):
         if not gate:
             note = "gravity along -{} instead of +{}: sensor upside down or axes swapped".format(
                 "/".join(k for k in axes if abar[_AXIS[k]] <= 0), "/".join(axes))
+        elif share < 0.75 and s in st.get("tilt_sensors", ()):
+            # tilt kept as recorded in the score; the corrected file is aligned on the vertical
+            note = "tilted {:.0f}° from the vertical at rest ({:.0f} % of the gravity on X): " \
+                   "X aligned on the vertical in corrected_{}.txt".format(
+                       np.degrees(np.arccos(np.sqrt(share))), 100 * share, s)
         elif share < 0.75:
             note = "gravity mostly along {} ({:.0f} % on {}): sensor rotated or axes swapped".format(
                 main_axis, 100 * share, "+".join(axes))

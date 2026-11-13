@@ -12,6 +12,7 @@ from matplotlib.patches import FancyBboxPatch
 
 from .params import FEET, GRAVITY, SENSORS
 from .scoring import combine
+from .indicators.uturn import walk_vertical
 from .segmentation import lb_heading, vertical_yaw_rate
 
 # --- palette -------------------------------------------------------------------------------
@@ -449,6 +450,9 @@ def construction_sheet(assessment):
             where, color = "rotated {}, corrected".format({90: "+90°", 180: "180°", 270: "−90°"}[p.rotation]), INK
         tilt = "Δtilt {:.1f}°".format(stab.value) if stab is not None and stab.value is not None else \
             "Δtilt –" if stab is not None else "orientation not scored (head)"
+        if p is not None and p.R_tilt is not None and \
+                p.tilt_corrected >= a.params["settings"].get("tilt_report_deg", 10.0):
+            tilt += " · aligned {:.0f}°".format(p.tilt_corrected)   # alignment of the corrected file
         ax.text(1.03, k, where, va="center", fontsize=7.5, color=color)
         ax.text(1.03, k + 0.32, tilt, va="center", fontsize=6.8, color=INK2)
     ax.set_yticks(range(len(SENSORS)), [SENSOR_NAMES[s] for s in SENSORS])
@@ -523,12 +527,14 @@ def draw_uturn(ax, assessment, lang="en"):
         ax.text(0.5, 0.5, "{}\n{}".format(lab["no_uturn"], seg.uturn_error), transform=ax.transAxes, ha="center",
                 va="center", fontsize=9, color=_LOW)
         return
-    theta, model = lb_heading(al, u)
+    p = (a.placement or {}).get("LB")
+    theta, model = lb_heading(al, u, None if p is None or p.R_tilt is None else p.R_tilt[0])
     ax.axvspan(u.start / freq, u.end / freq, color="#f6efe3", zorder=0)
     ax.plot(t, theta, color=SENSOR_COLORS["LB"], lw=1.4, label=lab["lb"])
     if "HE" in al.acc:
-        yaw_he = vertical_yaw_rate(al, "HE", _rest_slice(a, "HE"))
-        yaw_lb = vertical_yaw_rate(al, "LB", _rest_slice(a, "LB"))
+        st = a.params["settings"]
+        yaw_he = vertical_yaw_rate(al, "HE", walk_vertical(al, a.stillness, "HE", st))
+        yaw_lb = vertical_yaw_rate(al, "LB", walk_vertical(al, a.stillness, "LB", st))
         sign = np.sign(np.sum(yaw_lb[u.start:u.end]) * (theta[min(u.end, al.n - 1)] - theta[max(u.start, 0)])) or 1
         th = sign * np.cumsum(yaw_he) / freq
         before = slice(max(u.start - int(freq), 0), max(u.start, 1))

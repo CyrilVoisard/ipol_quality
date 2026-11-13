@@ -48,7 +48,10 @@ def to_dict(assessment):
                          "gait_events": 0 if seg.gait_events is None else len(seg.gait_events),
                          "gait_events_error": seg.gait_events_error},
         "placement": None if not a.placement else {
-            s: {"rotation_deg": p.rotation, "classic": p.classic, "mapping": p.mapping(), "description": p.describe("en")}
+            s: {"rotation_deg": p.rotation, "classic": p.classic, "mapping": p.mapping(), "description": p.describe("en"),
+                "tilt_rest_deg": _r(p.tilt_rest, 1), "tilt_walk_deg": _r(p.tilt_walk, 1),
+                "tilt_corrected_deg": _r(p.tilt_corrected, 1), "tilt_reference": p.tilt_reference,
+                "corrected_matrix": [[round(float(v), 6) for v in row] for row in p.R_corrected]}
             for s, p in a.placement.items()},
         "placement_messages": placement_messages(a),
         "parameters": a.params,
@@ -71,6 +74,11 @@ def placement_messages(assessment):
         if used:
             out.append("{} feeds {}: if computed on the raw file, rerun it on corrected_{}.txt".format(
                 s, SEGMENTATION_SENSORS[s], s))
+    limit = a.params["settings"].get("tilt_report_deg", 10.0)
+    for s, p in (a.placement or {}).items():
+        if p.R_tilt is not None and p.tilt_corrected >= limit:
+            out.append("{} tilted {:.0f}° during the walk: X aligned on the vertical in corrected_{}.txt, "
+                       "on which the U-turn and the gait parameters should be computed".format(s, p.tilt_walk, s))
     return out
 
 
@@ -108,7 +116,8 @@ def text_report(assessment):
     if assessment.placement:
         lines += ["", "Placement of the sensors (detected, corrected before the indicators)"]
         for s, p in assessment.placement.items():
-            lines.append("  {:<6}{}".format(s, p.describe("en")))
+            tilt = p.describe_tilt()
+            lines.append("  {:<6}{}{}".format(s, p.describe("en"), "" if tilt is None else "; " + tilt))
         for m in placement_messages(assessment):
             lines.append("  " + m)
     low = sorted([i for i in assessment.indicators if i.quality is not None and i.quality <= st["good"]],

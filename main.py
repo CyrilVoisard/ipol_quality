@@ -20,8 +20,9 @@ Outputs (in the current folder):
     quality.txt        scores, placement and indicators at 75 or below (displayed by the demo)
     quality.json       every value, indicator and parameter (download)
     indicators.csv     one row per indicator (download)
-    corrected_XX.txt   raw file of each sensor with its axes turned into the classic frame (download),
-                       to run the U-turn and gait-event demos again when a sensor was turned
+    corrected_XX.txt   raw file of each sensor with its axes turned into the classic frame and, for the
+                       lower back, X aligned on the vertical (download): input of the U-turn and
+                       gait-event demos and of the gait parameters
     algo_info.txt      head=0/1 (used by the demo page)
     demo_failure.txt   reason of the failure, if the trial cannot be scored
 """

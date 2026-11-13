@@ -17,7 +17,9 @@ recording can be trusted before any gait parameter is computed from it.
 The placement of each sensor is first detected: a sensor strapped in another way (turned by 90,
 180 or 270 degrees in its own plane) is reported, its axes are brought back to the classic frame
 before the indicators are computed, and its corrected file is written (`corrected_XX.txt`) so that
-the U-turn and gait-event segmentations can be computed again on the right axes. Eighteen indicators are then computed **on the raw
+the U-turn and gait-event segmentations can be computed again on the right axes. The X axis of the lower-back sensor is
+also aligned on the vertical in its corrected file (the tilt is reported and still scored by the
+orientation group, which is computed before this alignment). Eighteen indicators are then computed **on the raw
 signals** (no filter, no offset correction), in six groups, three per sensor and three for the
 trial:
 
@@ -97,7 +99,7 @@ the angular velocity (rad/s, deg/s or automatic).
 | `quality.txt` | scores and classes, per-sensor scores, placement of each sensor, indicators at 75 or below with their reason |
 | `quality.json` | every value, deviation, quality and parameter |
 | `indicators.csv` | one row per indicator and sensor |
-| `corrected_XX.txt` | raw file of each sensor with its axes in the classic frame (same columns and samples) |
+| `corrected_XX.txt` | raw file of each sensor with its axes in the classic frame and, for the lower back, its X axis aligned on the vertical (same columns and samples): input of the U-turn, gait-event and gait-parameter algorithms |
 
 ## Running the code
 
@@ -112,6 +114,10 @@ python main.py -i0 head.txt -i1 lower_back.txt -i2 left_foot.txt -i3 right_foot.
 `-i0` may be omitted. `-end_required 1` requires the end of the walk to be recorded (sensors still
 at the end of the recording), as needed to study the last steps. The outputs are written in the current folder; if the trial cannot be scored
 (required file missing, unreadable file), the reason is written in `demo_failure.txt`.
+
+**Recommended order**: run the code first without `-i4`, to get the corrected files; run the U-turn and
+gait-event demos on these corrected files; then run the code again on the raw files with `-i4`: the
+score keeps the trace of the placement and judges the segmentation actually used.
 
 From Python:
 

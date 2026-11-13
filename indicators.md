@@ -130,6 +130,24 @@ the orientation group. With `settings["placement"]="fixed"` the classic frames a
 On the 2025 data set, the detection agrees with the axis changes made by hand in the published
 processed files for 100 % of the head and lower-back sensors and 99.3 to 99.6 % of the foot sensors.
 
+**Alignment on the vertical** (`placement.py`, `settings["tilt_sensors"]`, lower back by default).
+The U-turn and gait-parameter algorithms take the $X$ axis of the lower back as the vertical. A
+sensor strapped on the lumbar curve, or a patient who leans on crutches, tilts $X$ by several tens
+of degrees, and the rotation about $X$ then underestimates the U-turn
+($\approx180°\cos\alpha$ for a tilt $\alpha$). Once the quarter turn corrected, the vertical is
+estimated by the mean acceleration $\mathbf{g}$ over the walk $A$ (`tilt_reference="walk"`, the
+posture analysed by the algorithms; the mean linear acceleration of a walk from standing to
+standing is zero) or over the quietest second at rest (`"rest"`), and the smallest rotation taking
+$\mathbf{g}/\lVert\mathbf{g}\rVert$ onto $+X$ (Rodrigues) is applied to $\mathbf{a}_s$ and
+$\boldsymbol\omega_s$ **in the corrected file only**. The heading (rotation about the vertical) is
+not changed. The indicators are computed before this alignment: orient_rest keeps the tilt as
+recorded and orient_stability tells whether the sensor stayed in place, i.e. whether one rotation
+holds for the whole trial. Both tilts (at rest, over the walk), the angle and the matrix of the
+alignment are reported (`quality.json`, `placement`); from `tilt_report_deg` (10°) the report asks to
+compute the U-turn and the gait parameters on the corrected file. No alignment is made when the
+gravity is not on $+X$ or the tilt exceeds `tilt_max_deg` (75°): sensor on another face, a gross
+error scored by orient_rest.
+
 ## 5. Indicators
 
 ### Raw data — was the stream received entirely? (per sensor)
@@ -193,11 +211,14 @@ $\{X,Z\}$ for the feet):
 | uturn_fit | $1-R^2$: the model is a simplification of a real turn, so the tolerance is wide; $R^2=0.95$ gives 75, $R^2=0.9$ gives 50 | 0.1 |
 | uturn_amplitude | $\big\lvert180-\lvert a\rvert\big\rvert$ (deg): a turn of 135° or 225° gives 50 | 45 deg |
 | drift_ratio | $\lvert\bar{\boldsymbol\omega}_{LB}\cdot\bar{\mathbf{a}}_{LB}\rvert/\lVert\bar{\mathbf{a}}_{LB}\rVert\ /\ \big(\lvert a\rvert F/c\big)$: offset of the trunk gyroscope about the vertical at rest (the raw drift of the heading that the U-turn detection integrates) relative to the mean turning rate of the U-turn, i.e. the share of the U-turn amplitude that the drift adds over the duration of the turn; logarithmic scale, 100 up to 0.025 (4.5° on 180°), 75 at 0.07 (13°), 0 from 1.6 | $\delta_{100}=0.025$, $\delta_{50}=0.2$ |
-| head_trunk | $1-\min(\Delta_{HE},\Delta_{LB})/\max(\Delta_{HE},\Delta_{LB})$, $\Delta_s$ the range of the heading of $s$ over $[u_0-1\,\mathrm{s},\ u_1+1\,\mathrm{s}]$ | 0.3 |
+| head_trunk | $1-\min(\Delta_{HE},\Delta_{LB})/\max(\Delta_{HE},\Delta_{LB})$, $\Delta_s$ the net rotation of $s$ across the U-turn: mean heading over $[u_1,\ u_1+1\,\mathrm{s}]$ minus mean heading over $[u_0-1\,\mathrm{s},\ u_0]$ (averaging over about a stride cancels the oscillation of each step, which the range of the heading would add to the turn) | 0.3 |
 
 The heading of sensor $s$ is the integral of its angular velocity about the vertical,
 $\boldsymbol\omega_s\cdot\bar{\mathbf{a}}_s/\lVert\bar{\mathbf{a}}_s\rVert$ (low-pass filtered,
-Butterworth order 8, 14 Hz), which does not depend on how the sensor is mounted. All four are
+Butterworth order 8, 14 Hz), which does not depend on how the sensor is mounted. For head_trunk,
+$\bar{\mathbf{a}}_s$ is the mean acceleration over the walk $A$, the posture of the turn (as for
+the alignment of the corrected files): a subject who looks down while walking tilts the head
+sensor away from its vertical at rest, which would shrink the head turn. All four are
 0 when the U-turn is not segmented; head_trunk is left out without head sensor, drift_ratio without
 any standing period (scored by still_time).
 

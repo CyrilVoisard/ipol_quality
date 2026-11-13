@@ -4,7 +4,8 @@
     "input_description": [
       "<p>A trial of the test <i>standing &ndash; 10 m walk &ndash; U-turn &ndash; 10 m walk back &ndash; standing</i>, recorded with inertial sensors on the <b>head</b> (optional), the <b>lower back</b>, the <b>left foot</b> and the <b>right foot</b>.</p>",
       "<p><b>Raw files</b> (one per sensor): text tables with the columns <code>PacketCounter</code>, <code>Acc_X</code>, <code>Acc_Y</code>, <code>Acc_Z</code>, <code>Gyr_X</code>, <code>Gyr_Y</code>, <code>Gyr_Z</code>, not filtered and not corrected. The head file may be left empty: the head indicators are then not computed.</p>",
-      "<p><b>Segmentation file</b> (JSON): the results of the two IPOL segmentation demos gathered in one object, <code>{\"uturn\": {content of uturn.json}, \"gait_events\": {content of gait_events.json}}</code>, given by the U-turn segmentation demo (lower-back file) and the MP-DTW gait events demo (foot files). The result file of one demo alone is accepted: the other part is then scored 0, with the reason.</p>"
+      "<p><b>Segmentation file</b> (JSON): the results of the two IPOL segmentation demos gathered in one object, <code>{\"uturn\": {content of uturn.json}, \"gait_events\": {content of gait_events.json}}</code>, given by the U-turn segmentation demo (lower-back file) and the MP-DTW gait events demo (foot files). The result file of one demo alone is accepted: the other part is then scored 0, with the reason.</p>",
+      "<p><b>Recommended order</b>: run this demo first without the segmentation file, to get the <b>corrected files</b> (axes in the classic frame and, for the lower back, X axis aligned on the vertical); run the U-turn and gait-event demos on these corrected files; then run this demo again on the raw files with the segmentation file: the score keeps the trace of the placement and judges the segmentation actually used.</p>"
     ],
     "param_description": [
       "<p>Acquisition frequency of the sensors and units of the raw files (<i>automatic</i>: recognised from the order of magnitude of the signals).</p>"
@@ -118,6 +119,22 @@
         "Indicators (CSV)": "indicators.csv",
         "Quality score (PNG)": "score.png",
         "Construction of the score (PNG)": "construction.png"
+      }
+    },
+    {
+      "type": "file_download",
+      "label": "<h2>Corrected files</h2><p>Same columns and samples as the raw files, axes in the classic frame and, for the lower back, X axis aligned on the vertical: input of the U-turn and gait-event demos and of the gait parameters.</p>",
+      "contents": {
+        "Lower back (TXT)": "corrected_LB.txt",
+        "Left foot (TXT)": "corrected_LF.txt",
+        "Right foot (TXT)": "corrected_RF.txt"
+      }
+    },
+    {
+      "type": "file_download",
+      "visible": "info.head == 1",
+      "contents": {
+        "Head (TXT)": "corrected_HE.txt"
       }
     }
   ],

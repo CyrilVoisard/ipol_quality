@@ -10,12 +10,24 @@ from .sensor import rest_window
 GROUP = "uturn"
 
 
-def heading_change(aligned, stillness, sensor, start, end, settings):
-    """Range of the heading of ``sensor`` (deg) over [start, end)."""
-    yaw = vertical_yaw_rate(aligned, sensor, rest_window(aligned, stillness, sensor, settings))
+def walk_vertical(aligned, stillness, sensor, settings):
+    """Window of the vertical of ``sensor`` for its heading: the walk (the posture of the turn, as
+    for the alignment of the corrected files), or the rest window without walk."""
+    if stillness.active.end - stillness.active.start >= 2:
+        return stillness.active.slice()
+    return rest_window(aligned, stillness, sensor, settings)
+
+
+def heading_change(aligned, stillness, sensor, start, end, margin, settings):
+    """Net rotation of ``sensor`` about the vertical of the walk across the U-turn (deg): mean
+    heading over the ``margin`` samples after ``end`` minus mean heading over the ``margin``
+    samples before ``start``. Averaging over about a stride cancels the oscillation of each step,
+    which the range of the heading would add to the turn."""
+    yaw = vertical_yaw_rate(aligned, sensor, walk_vertical(aligned, stillness, sensor, settings))
     theta = np.cumsum(yaw) / aligned.freq
-    seg = theta[max(start, 0):min(end, aligned.n)]
-    return float(np.max(seg) - np.min(seg)) if len(seg) else 0.0
+    before = theta[max(start - margin, 0):max(start, 1)]
+    after = theta[min(end, aligned.n - 1):min(end + margin, aligned.n)]
+    return float(abs(np.mean(after) - np.mean(before)))
 
 
 def drift_ratio(aligned, stillness, u, params):
@@ -56,8 +68,8 @@ def compute(aligned, stillness, segmentation, params):
         out.append(absent("head_trunk", GROUP, None, "-"))
         return out
     m = int(round(st["head_trunk_margin"] * aligned.freq))
-    amp_lb = heading_change(aligned, stillness, "LB", u.start - m, u.end + m + 1, st)
-    amp_he = heading_change(aligned, stillness, "HE", u.start - m, u.end + m + 1, st)
+    amp_lb = heading_change(aligned, stillness, "LB", u.start, u.end, m, st)
+    amp_he = heading_change(aligned, stillness, "HE", u.start, u.end, m, st)
     ratio = min(amp_lb, amp_he) / max(amp_lb, amp_he) if max(amp_lb, amp_he) > 0 else 0.0
     out.append(make("head_trunk", GROUP, None, ratio, "-", 1.0 - ratio, params,
                     note="head {:.0f} deg, trunk {:.0f} deg".format(amp_he, amp_lb)))

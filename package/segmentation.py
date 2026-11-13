@@ -144,17 +144,19 @@ def vertical_yaw_rate(aligned, sensor, rest=None):
     return np.degrees(low_pass(gyr, aligned.freq) @ (g / np.linalg.norm(g)))
 
 
-def lb_heading(aligned, uturn):
+def lb_heading(aligned, uturn, axis=None):
     """Heading of the lower back as fitted by the U-turn code (for the figures).
 
     Integrated angular velocity about X (filtered, deg), corrected for the removed drift,
     centred between its two levels on the fit window and oriented so that it increases.
+    ``axis``: X of the corrected file, on which the U-turn is computed (default: X of the sensor).
 
     Returns
     -------
     theta {array}, model on the fit window {array}
     """
-    yaw = np.degrees(low_pass(aligned.gyr["LB"][:, 0], aligned.freq))
+    gyr = aligned.gyr["LB"][:, 0] if axis is None else aligned.gyr["LB"] @ np.asarray(axis, float)
+    yaw = np.degrees(low_pass(gyr, aligned.freq))
     i = np.arange(aligned.n)
     theta = np.cumsum(yaw) / aligned.freq
     theta = theta - theta[0] - uturn.drift_dps / aligned.freq * i
