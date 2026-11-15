@@ -14,12 +14,13 @@ period, recorded with four inertial sensors: head (optional), lower back, left f
 In the spirit of the signal quality indices of the electrocardiogram, the code tells whether the
 recording can be trusted before any gait parameter is computed from it.
 
-The placement of each sensor is first detected: a sensor strapped in another way (turned by 90,
-180 or 270 degrees in its own plane) is reported, its axes are brought back to the classic frame
+The placement of each sensor is first detected: a sensor strapped in another way (turned in its own
+plane by 90, 180 or 270 degrees for the head and the lower back, by 180 degrees for the feet) is
+reported, its axes are brought back to the classic frame
 before the indicators are computed, and its corrected file is written (`corrected_XX.txt`) so that
 the U-turn and gait-event segmentations can be computed again on the right axes. The X axis of the lower-back sensor is
 also aligned on the vertical in its corrected file (the tilt is reported and still scored by the
-orientation group, which is computed before this alignment). Eighteen indicators are then computed **on the raw
+orientation group, which is computed before this alignment). Nineteen indicators are then computed **on the raw
 signals** (no filter, no offset correction), in six groups, three per sensor and three for the
 trial:
 
@@ -30,7 +31,7 @@ trial:
 | Orientation | once the placement corrected, is each sensor aligned with the body segment, and did it stay so? | orient_rest, walk_plane_acc, walk_plane_gyr, orient_stability (lower back, feet) |
 | Protocol | was the protocol respected? | n_uturns, still_time |
 | U-turn | is the U-turn segmentation consistent? | uturn_fit, uturn_amplitude, drift_ratio, head_trunk |
-| Segmentation | are the gait events physiologically consistent? | alternation |
+| Segmentation | are the gait events physiologically consistent? | alternation, flight |
 
 Each indicator is a deviation from its ideal value, mapped to a quality between 0 and 100 (100 up
 to a tolerance, 50 at a half-quality deviation). Defects that the usual pre-processing corrects

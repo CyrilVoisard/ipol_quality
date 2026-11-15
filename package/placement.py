@@ -6,8 +6,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-QUARTERS = (0, 90, 180, 270)
-
 
 def rz(deg):
     """Rotation by deg about Z. A sensor turned by deg in its plane measures the classic vectors
@@ -40,13 +38,13 @@ class Placement:
     rotation: int            # rotation of the sensor in its plane, degrees about Z (0 = classic)
     R: np.ndarray            # a_classic = R @ a_raw
     in_plane: float          # share of the gravity in the XY plane of the sensor (0..1)
-    margin: float            # angular distance to the nearest quarter turn boundary (deg, 0..45)
-    decided_by: str          # "gravity" or "walk"
+    margin: float            # angular distance of the gravity to the nearest decision boundary (deg)
+    decided_by: str          # "gravity at rest", or "no standing period" (not checked: classic assumed)
     # alignment on the vertical, written in the corrected file only (settings["tilt_sensors"])
     R_tilt: np.ndarray = None        # a_corrected = R_tilt @ R @ a_raw (None: no alignment)
     tilt_rest: float = None          # tilt at rest (deg, classic frame), None without standing period
-    tilt_walk: float = None          # tilt of the mean acceleration over the walk (deg)
-    tilt_reference: str = None       # vertical used: "walk" or "rest" (or why it was not aligned)
+    tilt_walk: float = None          # tilt of the mean acceleration over the walk (deg, reported only)
+    tilt_reference: str = None       # "rest" when aligned, otherwise why it was not aligned
 
     @property
     def classic(self):
@@ -67,11 +65,19 @@ class Placement:
     def describe_tilt(self):
         if self.R_tilt is None:
             return None if self.tilt_reference is None else "not aligned on the vertical ({})".format(self.tilt_reference)
-        rest = "" if self.tilt_rest is None else ", {:.1f}° at rest".format(self.tilt_rest)
-        return "tilt {:.1f}° during the walk{}: X aligned on the vertical ({}) in corrected_{}.txt".format(
-            self.tilt_walk, rest, self.tilt_reference, self.sensor)
+        walk = "" if self.tilt_walk is None else " ({:.1f}° during the walk)".format(self.tilt_walk)
+        return "tilt {:.1f}° at rest{}: X aligned on the vertical at rest in corrected_{}.txt".format(
+            self.tilt_rest, walk, self.sensor)
+
+    @property
+    def checked(self):
+        """False without standing period: nothing is corrected, the classic frame is assumed."""
+        return self.decided_by != "no standing period"
 
     def describe(self, lang="fr"):
+        if not self.checked:
+            return ("position non vérifiée (pas de période debout) : classique supposée" if lang == "fr" else
+                    "placement not checked (no standing period): classic assumed")
         if self.classic:
             return "position classique" if lang == "fr" else "classic placement"
         angle = {90: "+90°", 180: "180°", 270: "−90°"}[self.rotation]
@@ -89,28 +95,36 @@ class Placement:
 
 
 def detect(aligned, stillness, settings):
-    """Placement of every sensor provided (dictionary sensor -> Placement)."""
+    """Placement of every sensor provided (dictionary sensor -> Placement).
+
+    Everything is decided at rest, from the gravity over the quietest second of the standing period
+    (before the walk, else after): the walk of a patient cannot serve as a reference. The rotation
+    of a sensor in its plane is the allowed rotation (settings["placement_rotations"]) whose
+    direction of the gravity is the nearest to the gravity at rest: a sensor turned by theta has its
+    gravity at -theta in its XY plane (classic: on +X). Without standing period nothing is
+    corrected: the classic frames are assumed, and still_time scores the missing standing."""
     from .indicators.sensor import rest_window
     out = {}
+    standing = stillness.rest.label != "quietest"
     walk = stillness.active.slice() if stillness.active.end - stillness.active.start >= 2 else slice(0, aligned.n)
     for s in aligned.sensors:
+        if not standing:
+            p = Placement(s, 0, rz(0), float("nan"), float("nan"), "no standing period")
+            if s in settings.get("tilt_sensors", ()):
+                g_walk = aligned.acc[s][walk].mean(axis=0)
+                p.tilt_walk, p.tilt_reference = angle_to_x(g_walk), "no standing period"
+            out[s] = p
+            continue
         g = aligned.acc[s][rest_window(aligned, stillness, s, settings)].mean(axis=0)
         gxy = np.hypot(g[0], g[1])
         in_plane = float(gxy / (np.linalg.norm(g) + 1e-12))
         phi = np.degrees(np.arctan2(g[1], g[0]))
-        k = int(np.round(phi / 90.0)) % 4          # gravity at k quarter turns -> sensor turned by -k
-        margin = 45.0 - abs(((phi - 90.0 * np.round(phi / 90.0)) + 180.0) % 360.0 - 180.0)
-        decided = "gravity"
-        if s in ("LF", "RF"):
-            # feet: the gravity at rest leans on the dorsum and can point anywhere near the boundary
-            # between two quarter turns; the medio-lateral axis (Y) is the axis of the main angular
-            # velocity during the walk, the gravity only gives the sign (classic X carries a
-            # positive share of it)
-            e = np.mean(aligned.gyr[s][walk] ** 2, axis=0)
-            k = (0 if g[0] >= 0 else 2) if e[1] >= e[0] else (1 if g[1] >= 0 else 3)   # same convention
-            decided = "walk"
-        rotation = QUARTERS[(-k) % 4]
-        p = Placement(s, rotation, rz(rotation), in_plane, float(margin), decided)
+        allowed = tuple(settings["placement_rotations"][s])
+        dist = {theta: abs((phi + theta + 180.0) % 360.0 - 180.0) for theta in allowed}
+        order = sorted(allowed, key=lambda theta: (dist[theta], theta))
+        rotation = order[0]
+        margin = (dist[order[1]] - dist[order[0]]) / 2.0 if len(order) > 1 else 180.0
+        p = Placement(s, rotation, rz(rotation), in_plane, float(margin), "gravity at rest")
         if s in settings.get("tilt_sensors", ()):
             _tilt(p, aligned, stillness, walk, g, settings)
         out[s] = p
@@ -118,29 +132,21 @@ def detect(aligned, stillness, settings):
 
 
 def _tilt(p, aligned, stillness, walk, g_rest, settings):
-    """Alignment of the X axis of sensor p.sensor on the vertical (classic frame, after the quarter
-    turn). The rest value is not used without standing period (the rest window is then taken while
-    walking); without a walk the rest value is the only one."""
-    has_rest = stillness.rest.label != "quietest"
+    """Alignment of the X axis of sensor p.sensor on the vertical at rest (classic frame, after the
+    quarter turn): the mean acceleration over the quietest second of the standing period. The tilt
+    of the mean acceleration over the walk is reported, not used."""
     has_walk = stillness.active.end - stillness.active.start >= 2
-    g_rest = p.R @ g_rest if has_rest else None
-    g_walk = p.R @ aligned.acc[p.sensor][walk].mean(axis=0) if has_walk else None
-    p.tilt_rest = None if g_rest is None else angle_to_x(g_rest)
-    p.tilt_walk = None if g_walk is None else angle_to_x(g_walk)
-    reference = settings.get("tilt_reference", "walk")
-    g = g_walk if reference == "walk" else g_rest
-    if g is None:
-        reference, g = ("rest", g_rest) if g_rest is not None else ("walk", g_walk)
-    if g is None:
-        p.tilt_reference = "no rest nor walk"
-    elif g[0] <= 0:
+    g = p.R @ g_rest
+    p.tilt_rest = angle_to_x(g)
+    p.tilt_walk = angle_to_x(p.R @ aligned.acc[p.sensor][walk].mean(axis=0)) if has_walk else None
+    if g[0] <= 0:
         # gravity not on +X: sensor on another face or axes swapped, scored by orient_rest (gate)
         p.tilt_reference = "gravity not on +X"
-    elif angle_to_x(g) > settings.get("tilt_max_deg", 75.0):
+    elif p.tilt_rest > settings.get("tilt_max_deg", 75.0):
         # beyond a plausible tilt of the trunk: sensor on another face, scored by orient_rest
         p.tilt_reference = "tilt above {:g}°".format(settings.get("tilt_max_deg", 75.0))
     else:
-        p.R_tilt, p.tilt_reference = tilt_rotation(g), reference
+        p.R_tilt, p.tilt_reference = tilt_rotation(g), "rest"
 
 
 def write_corrected(path_in, placement, path_out):

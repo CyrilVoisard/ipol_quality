@@ -63,6 +63,10 @@ def placement_messages(assessment):
     before the indicators, and a segmentation computed on the raw file of such a sensor by another
     demo may be wrong."""
     a, out = assessment, []
+    unchecked = [s for s, p in (a.placement or {}).items() if not p.checked]
+    if unchecked:
+        out.append("no standing period: placement not checked and nothing corrected ({}), classic frames "
+                   "assumed".format(", ".join(unchecked)))
     for s, p in (a.placement or {}).items():
         if p.classic:
             continue
@@ -77,8 +81,9 @@ def placement_messages(assessment):
     limit = a.params["settings"].get("tilt_report_deg", 10.0)
     for s, p in (a.placement or {}).items():
         if p.R_tilt is not None and p.tilt_corrected >= limit:
-            out.append("{} tilted {:.0f}° during the walk: X aligned on the vertical in corrected_{}.txt, "
-                       "on which the U-turn and the gait parameters should be computed".format(s, p.tilt_walk, s))
+            walk = "" if p.tilt_walk is None else " ({:.0f}° during the walk)".format(p.tilt_walk)
+            out.append("{} tilted {:.0f}° at rest{}: X aligned on the vertical at rest in corrected_{}.txt, "
+                       "on which the U-turn and the gait parameters should be computed".format(s, p.tilt_rest, walk, s))
     return out
 
 

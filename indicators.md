@@ -46,7 +46,8 @@ sensors, part of the energy of the walk out of its plane. The logarithmic scale 
 drift of the heading, which spans orders of magnitude: each doubling costs 25 points (100 up to
 0.025, 75 at 0.07, 50 at 0.2). Parameters: `params.DELTA50`,
 `params.DELTA100`, `params.SCALE`. The number of U-turns has its own table of qualities
-(`settings["n_uturns_quality"]`).
+(`settings["n_uturns_quality"]`), and so has the time with both feet in the air
+(`settings["flight_quality"]`).
 
 **Choice of the thresholds.** The distribution of each deviation on a reference cohort of healthy
 subjects (AMISIA, 85 trials) describes a normal recording; $\delta_{50}$ starts at twice its 95th
@@ -116,37 +117,44 @@ $\bar{\mathbf{a}}_s$ and $\bar{\boldsymbol\omega}_s$ denote means on $W_s$, $A=[
 **Placement of the sensors** (`placement.py`, `settings["placement"]="detect"`). Classic frames:
 head and lower back with gravity on $+X$ at rest ($X$ cranio-caudal, $Y$ medio-lateral, $Z$
 antero-posterior); feet on the dorsum with gravity shared between $+X$ and $+Z$, $Y$ medio-lateral.
-The variants met in practice are rotations of the sensor in its own plane, about $Z$, by
-$\theta\in\{0,90,180,270\}$ degrees (strap put another way). Head and lower back:
-$\varphi=\operatorname{atan2}(\bar a_{s,Y},\bar a_{s,X})$ is snapped to the nearest quarter turn $k$
-and $\theta=-90k$. Feet: the medio-lateral axis is the in-plane axis with the larger energy of
-$\boldsymbol\omega_s$ on $A$ ($Y$: $\theta\in\{0,180\}$, $X$: $\theta\in\{90,270\}$); the sign of
-$\bar a_{s,X}$ (resp. $\bar a_{s,Y}$) chooses between the two. The signals are then rotated,
+The variants met in practice are rotations of the sensor in its own plane, about $Z$ (strap put
+another way): $\theta\in\{0,90,180,270\}$ degrees for the head and the lower back, $\theta\in\{0,180\}$
+for the feet, whose strap allows no quarter turn (`settings["placement_rotations"]`). A sensor turned by
+$\theta$ has its gravity at $-\theta$ in its $XY$ plane: with
+$\varphi=\operatorname{atan2}(\bar a_{s,Y},\bar a_{s,X})$, $\theta$ is the allowed rotation whose direction
+$-\theta$ is the nearest to $\varphi$ (head and lower back: the nearest quarter turn; feet: the sign of
+$\bar a_{s,X}$, the classic $X$ carrying a positive share of the gravity on the dorsum). A foot sensor
+turned by a quarter turn is not corrected: its main angular velocity is then off $Y$, which
+walk_plane_gyr scores. The signals are then rotated,
 $\mathbf{a}_s\leftarrow R_z(\theta)\,\mathbf{a}_s$ and
 $\boldsymbol\omega_s\leftarrow R_z(\theta)\,\boldsymbol\omega_s$, before the indicators.
+Like the alignment below, the placement is decided at rest only (the walk of a patient cannot serve
+as a reference): without any standing period nothing is corrected, the classic frames are assumed
+and reported as such, and still_time scores the missing standing.
 A variant is reported (report and figure), not scored: it is corrected without loss. What a
 rotation in the plane cannot fix (a sensor on another face, tilted, swapped axes) is measured by
 the orientation group. With `settings["placement"]="fixed"` the classic frames are assumed.
 On the 2025 data set, the detection agrees with the axis changes made by hand in the published
-processed files for 100 % of the head and lower-back sensors and 99.3 to 99.6 % of the foot sensors.
+processed files for 100 % of the head and lower-back sensors.
 
 **Alignment on the vertical** (`placement.py`, `settings["tilt_sensors"]`, lower back by default).
 The U-turn and gait-parameter algorithms take the $X$ axis of the lower back as the vertical. A
 sensor strapped on the lumbar curve, or a patient who leans on crutches, tilts $X$ by several tens
 of degrees, and the rotation about $X$ then underestimates the U-turn
 ($\approx180°\cos\alpha$ for a tilt $\alpha$). Once the quarter turn corrected, the vertical is
-estimated by the mean acceleration $\mathbf{g}$ over the walk $A$ (`tilt_reference="walk"`, the
-posture analysed by the algorithms; the mean linear acceleration of a walk from standing to
-standing is zero) or over the quietest second at rest (`"rest"`), and the smallest rotation taking
-$\mathbf{g}/\lVert\mathbf{g}\rVert$ onto $+X$ (Rodrigues) is applied to $\mathbf{a}_s$ and
-$\boldsymbol\omega_s$ **in the corrected file only**. The heading (rotation about the vertical) is
-not changed. The indicators are computed before this alignment: orient_rest keeps the tilt as
-recorded and orient_stability tells whether the sensor stayed in place, i.e. whether one rotation
-holds for the whole trial. Both tilts (at rest, over the walk), the angle and the matrix of the
-alignment are reported (`quality.json`, `placement`); from `tilt_report_deg` (10°) the report asks to
-compute the U-turn and the gait parameters on the corrected file. No alignment is made when the
-gravity is not on $+X$ or the tilt exceeds `tilt_max_deg` (75°): sensor on another face, a gross
-error scored by orient_rest.
+the mean acceleration $\bar{\mathbf{a}}_s$ over the quietest second at rest $W_s$, and the smallest
+rotation taking $\bar{\mathbf{a}}_s/\lVert\bar{\mathbf{a}}_s\rVert$ onto $+X$ (Rodrigues) is applied to
+$\mathbf{a}_s$ and $\boldsymbol\omega_s$ **in the corrected file only**. The heading (rotation about the
+vertical) is not changed. The vertical is taken at rest and never from the walk, whose posture is
+not controlled in a patient: a residual tilt $\beta$ of the trunk during the walk then remains, and
+shrinks the U-turn by a factor $\cos\beta$ only (0.97 for 14°). Without standing period, nothing is
+aligned. The indicators are computed before this alignment: orient_rest keeps the tilt as recorded
+and orient_stability tells whether the sensor stayed in place, i.e. whether one rotation holds for
+the whole trial. Both tilts (at rest, over the walk, the latter reported only), the angle and the
+matrix of the alignment are reported (`quality.json`, `placement`); from `tilt_report_deg` (10°) the
+report asks to compute the U-turn and the gait parameters on the corrected file. No alignment is
+made when the gravity at rest is not on $+X$ or the tilt exceeds `tilt_max_deg` (75°): sensor on
+another face, a gross error scored by orient_rest.
 
 ## 5. Indicators
 
@@ -227,6 +235,7 @@ any standing period (scored by still_time).
 | indicator | deviation $\delta$ | $\delta_{50}$ |
 |---|---|---|
 | alternation | mean over the two straight walks (before and after the U-turn; the whole walk when the U-turn is not segmented) of $100-\alpha$, $\alpha=100\,(\text{number of foot changes})/(L-1)$ for the $L$ heel strikes of both feet of that walk in chronological order (%); a walk with fewer than 2 events counts 100. The alternation is not expected during the turn. A degraded alternation can come from the segmentation or from an altered gait (double steps) | 10 % |
+| flight | share of the two straight walks (from their first to their last gait event) with both feet in the air according to the gait events (%): a foot is in the air from the toe-off to the heel strike of each of its steps, and a step whose heel strike comes before its toe-off counts over its whole span (the gait parameters read each step from its toe-off to its heel strike). Never in a walk: 0 gives 100, more than 0 gives 75, more than 10 % gives 50 | table |
 
 ## 6. Figures
 

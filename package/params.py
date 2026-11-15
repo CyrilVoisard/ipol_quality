@@ -64,6 +64,9 @@ SETTINGS = {
     "still_after_target": 2.0,
     # quality of the number of U-turns counted: 1, 2, 3 (0 beyond)
     "n_uturns_quality": (100.0, 75.0, 50.0),
+    # quality of the share of the straight walks with both feet in the air according to the gait events
+    # (never in a walk): (threshold in %, quality above it); 100 at 0
+    "flight_quality": ((0.0, 75.0), (10.0, 50.0)),
     # True for the analyses that need the end of the walk (shape of the last steps, gait termination):
     # a recording whose sensors still move at its end then gets still_time = 0
     "end_standing_required": False,
@@ -92,15 +95,19 @@ SETTINGS = {
     # placement of the sensors: "detect" finds the rotation of each sensor in its plane and
     # corrects it before the indicators (reported, not scored); "fixed" assumes classic frames
     "placement": "detect",
+    # rotations of each sensor in its plane that can occur (deg about Z): head and lower back can be
+    # strapped any way round; the strap of a foot sensor only allows the classic placement or a half
+    # turn (a foot sensor turned by a quarter turn is not corrected: walk_plane_gyr scores it)
+    "placement_rotations": {"HE": (0, 90, 180, 270), "LB": (0, 90, 180, 270), "LF": (0, 180), "RF": (0, 180)},
     # alignment of the trunk on the vertical in the corrected files (corrected_XX.txt), which feed the
     # U-turn, gait-event and gait-parameter algorithms (they assume X vertical for the lower back):
     # the X axis of these sensors is brought onto the vertical by the smallest rotation (Rodrigues).
-    # The vertical is the mean acceleration over the walk ("walk": the posture that the algorithms
-    # analyse) or over the quietest second at rest ("rest"). The indicators are computed before this
-    # rotation: orient_rest keeps the tilt as recorded and orient_stability tells whether the sensor
-    # stayed in place, i.e. whether a single rotation holds for the whole trial.
+    # Like the quarter turns, it is decided at rest only: the vertical is the mean acceleration over
+    # the quietest second of the standing period (none without standing period); the walk of a
+    # patient cannot serve as a reference. The indicators are computed before this rotation:
+    # orient_rest keeps the tilt as recorded and orient_stability tells whether the sensor stayed in
+    # place, i.e. whether a single rotation holds for the whole trial.
     "tilt_sensors": ("LB",),
-    "tilt_reference": "walk",
     "tilt_report_deg": 10.0,    # [deg] tilt from which the correction is reported to the operator
     "tilt_max_deg": 75.0,       # [deg] no alignment beyond (sensor on another face: orient_rest)
 }

@@ -199,7 +199,7 @@ def _sensor_card(ax, x, y, s, assessment, w=2.25, h=1.02):
         return
     p = (assessment.placement or {}).get(s)
     # the placement is reported, not scored: neutral colours, not those of the quality
-    if p is None:
+    if p is None or not p.checked:
         status, color = "frame assumed classic", INK2
     elif p.classic:
         status, color = "classic placement", INK2
@@ -442,7 +442,7 @@ def construction_sheet(assessment):
         p = (a.placement or {}).get(s)
         if o is not None and o.note.startswith("gravity along -"):
             where, color = "wrong sign", _LOW
-        elif p is None:
+        elif p is None or not p.checked:
             where, color = "frame assumed classic", INK2
         elif p.classic:
             where, color = "classic placement", INK2
@@ -502,11 +502,11 @@ def construction_sheet(assessment):
 
     # H. gait events ---------------------------------------------------------------------------------------
     ax = fig.add_subplot(col_t[2])
-    i = _ind(a, "alternation")
     n_ev = 0 if seg.gait_events is None else len(seg.gait_events)
+    chips = [(lab + " " + _fmt(_ind(a, n).quality), _ind(a, n).quality)
+             for lab, n in (("alternation", "alternation"), ("both feet off", "flight"))]
     draw_gait_events(ax, a)
-    _panel(ax, "segmentation", "{} events".format(n_ev),
-           a.scores.groups["segmentation"], [("alternation " + _fmt(i.quality), i.quality)], xlabel="time (s)")
+    _panel(ax, "segmentation", "{} events".format(n_ev), a.scores.groups["segmentation"], chips, xlabel="time (s)")
     return fig
 
 
