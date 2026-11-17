@@ -78,7 +78,8 @@ def main():
     save_figures(a, out)
     for s, p in (a.placement or {}).items():
         if files.get(s):
-            write_corrected(files[s], p, os.path.join(out, "corrected_{}.txt".format(s)))
+            write_corrected(files[s], p, os.path.join(out, "corrected_{}.txt".format(s)),
+                            drop=a.aligned.beyond_full_scale.get(s, ()))
     return 0
 
 

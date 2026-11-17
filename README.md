@@ -100,7 +100,7 @@ the angular velocity (rad/s, deg/s or automatic).
 | `quality.txt` | scores and classes, per-sensor scores, placement of each sensor, indicators at 75 or below with their reason |
 | `quality.json` | every value, deviation, quality and parameter |
 | `indicators.csv` | one row per indicator and sensor |
-| `corrected_XX.txt` | raw file of each sensor with its axes in the classic frame and, for the lower back, its X axis aligned on the vertical (same columns and samples): input of the U-turn, gait-event and gait-parameter algorithms |
+| `corrected_XX.txt` | raw file of each sensor with its axes in the classic frame and, for the lower back, its X axis aligned on the vertical (same columns and samples, except the samples beyond the full scale of the sensor, left out as lost packets): input of the U-turn, gait-event and gait-parameter algorithms |
 
 ## Running the code
 
@@ -143,7 +143,7 @@ Scientific Data, 2025), with the segmentation given by the two IPOL demos:
 |---|---|---|
 | `1_healthy_good` | HS_58_2, healthy subject (XSens) | 87, good |
 | `2_patient_good` | PD_20_1, Parkinson's disease (TechnoConcept) | 90, good |
-| `3_healthy_acceptable` | HS_54_2, healthy subject (XSens) | 70, acceptable: short standing periods (protocol 70) and head–trunk coordination of the U-turn (73) |
+| `3_healthy_acceptable` | HS_43_5, healthy subject (XSens) | 70, acceptable: end of the walk not recorded (protocol 70) and head–trunk coordination of the U-turn (74) |
 | `4_healthy_critical` | HS_48_4, healthy subject (TechnoConcept) | 21, critical: end of the walk not recorded (protocol 21) and gyroscope offset of the left foot (sensors 32); gait events normal |
 
 ## Code organisation

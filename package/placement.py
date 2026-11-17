@@ -149,12 +149,13 @@ def _tilt(p, aligned, stillness, walk, g_rest, settings):
         p.R_tilt, p.tilt_reference = tilt_rotation(g), "rest"
 
 
-def write_corrected(path_in, placement, path_out):
+def write_corrected(path_in, placement, path_out, drop=()):
     """Copy of a raw sensor file with its Acc_*, Gyr_* (and Mag_*) columns turned into the classic
     frame and, for the sensors of settings["tilt_sensors"], with X aligned on the vertical
     (placement.R_corrected), so that the other demos (U-turn, gait events) and the gait parameters
-    can be run on corrected axes. The other columns, the samples and the header lines are kept as
-    they are."""
+    can be run on corrected axes. The samples whose PacketCounter is in ``drop`` (values beyond the
+    full scale of the sensor, see io.beyond_full_scale) are left out: the demos interpolate them
+    like lost packets. The other columns, samples and header lines are kept as they are."""
     import pandas as pd
     from .io import header_row
     with open(path_in, "r", encoding="utf-8-sig", errors="replace") as f:
@@ -163,6 +164,9 @@ def write_corrected(path_in, placement, path_out):
     data = pd.read_csv(path_in, sep=r"[,\t; ]+", skiprows=skip, engine="python", encoding="utf-8-sig",
                        encoding_errors="replace")
     data.columns = [str(c).strip() for c in data.columns]
+    if len(drop):
+        counter = pd.to_numeric(data["PacketCounter"], errors="coerce").round()
+        data = data[~counter.isin(set(drop))]
     for kind in ("Acc", "Gyr", "Mag"):
         cols = ["{}_{}".format(kind, k) for k in "XYZ"]
         if all(c in data.columns for c in cols):

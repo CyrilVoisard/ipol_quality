@@ -20,17 +20,19 @@ def compute(aligned, params):
         missing = 100.0 * st.n_missing / st.span
         gap = st.longest_gap / aligned.freq
         disconnection = 100.0 * (g_span - st.span) / g_span
-        out.append(make("missing", GROUP, s, missing, "%", missing, params, note=_missing_note(st)))
+        out.append(make("missing", GROUP, s, missing, "%", missing, params,
+                        note=_missing_note(st, len(aligned.beyond_full_scale.get(s, ())))))
         out.append(make("max_gap", GROUP, s, gap, "s", gap, params, note=_gap_note(st, g_first, aligned.freq)))
         out.append(make("disconnection", GROUP, s, disconnection, "%", disconnection, params,
                         note=_span_note(st, g_first, g_last, aligned.freq)))
     return out
 
 
-def _missing_note(st):
+def _missing_note(st, beyond=0):
     if not st.n_missing:
         return ""
-    return "{} samples lost in {} gap{}".format(st.n_missing, len(st.gaps), "s" if len(st.gaps) > 1 else "")
+    note = "{} samples lost in {} gap{}".format(st.n_missing, len(st.gaps), "s" if len(st.gaps) > 1 else "")
+    return note + (", {} of them beyond the full scale of the sensor".format(beyond) if beyond else "")
 
 
 def _gap_note(st, g_first, freq):

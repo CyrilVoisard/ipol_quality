@@ -52,6 +52,7 @@ class AlignedTrial:
     global_span: tuple        # (first, last) counter values over the four sensors
     meta: object = None
     warnings: list = field(default_factory=list)
+    beyond_full_scale: dict = field(default_factory=dict)   # sensor -> PacketCounter of the samples removed
 
     @property
     def sensors(self):
@@ -145,4 +146,5 @@ def align(raw_trial, min_overlap=0.5):
     global_span = (min(st.first for st in stats.values()), max(st.last for st in stats.values()))
     return AlignedTrial(trial_id=raw_trial.trial_id, freq=raw_trial.freq, acc=acc, gyr=gyr,
                         start=int(start), alignment=alignment, stats=stats, global_span=global_span,
-                        meta=raw_trial.meta, warnings=warnings)
+                        meta=raw_trial.meta, warnings=warnings,
+                        beyond_full_scale=getattr(raw_trial, "beyond_full_scale", {}))

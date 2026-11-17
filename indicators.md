@@ -160,6 +160,13 @@ another face, a gross error scored by orient_rest.
 
 ### Raw data — was the stream received entirely? (per sensor)
 
+A sample with a value beyond the full scale of the sensor on any axis (160 m/s², 2000 °/s for
+the MTw Awinda: `params.FULL_SCALE_ACC`, `params.FULL_SCALE_GYR`) cannot have been measured: it
+is a transmission artefact, typically two consecutive samples of opposite sign around ±10⁵. It
+is removed when the files are read and counted as a lost sample, interpolated like the others
+for the indicators, and left out of the corrected file (the demos interpolate it as a lost
+packet). A saturated value, at the full scale, is a real one and is kept.
+
 | indicator | deviation $\delta$ | $\delta_{50}$ |
 |---|---|---|
 | missing | $100\,m_s/N_s$ (%): isolated lost samples are interpolated without effect, long gaps are scored by max_gap | 6 % |

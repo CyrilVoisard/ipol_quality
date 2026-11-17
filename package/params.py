@@ -6,6 +6,11 @@ import copy
 import numpy as np
 
 GRAVITY = 9.81  # m/s^2
+# Full scale of the inertial sensors (MTw Awinda: +-16 g, +-2000 deg/s). A value beyond it cannot
+# have been measured: it is a transmission artefact (typically two consecutive samples of opposite
+# sign around +-1e5), and the sample is treated as lost.
+FULL_SCALE_ACC = 160.0               # m/s^2, on each axis
+FULL_SCALE_GYR = float(np.deg2rad(2000.0))   # rad/s, on each axis
 
 SENSORS = ("HE", "LB", "LF", "RF")   # head, lower back, left foot, right foot
 FEET = ("LF", "RF")

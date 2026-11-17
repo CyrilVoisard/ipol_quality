@@ -11,7 +11,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .params import GRAVITY, REQUIRED_SENSORS, SENSORS
+from .params import FULL_SCALE_ACC, FULL_SCALE_GYR, GRAVITY, REQUIRED_SENSORS, SENSORS
 
 _RAW_RE = re.compile(r"^(?P<trial>.+)_raw_data_(?P<sensor>HE|LB|LF|RF)\.txt$")
 _AXES = ("X", "Y", "Z")
@@ -41,6 +41,7 @@ class RawTrial:
     meta: TrialMeta = field(default_factory=TrialMeta)
     trial_dir: Optional[str] = None
     warnings: list = field(default_factory=list)
+    beyond_full_scale: dict = field(default_factory=dict)   # sensor -> PacketCounter of the samples removed
 
 
 # ---------------------------------------------------------------------------------------
@@ -174,6 +175,27 @@ def _convert_units(sensors, acc_unit="auto", gyr_unit="auto"):
     return notes
 
 
+def beyond_full_scale(data):
+    """Rows of a sensor table (SI units) with a value beyond the full scale of the sensor on an axis."""
+    acc = np.abs(data[list(ACC_COLS)].to_numpy(dtype=float)) > FULL_SCALE_ACC
+    gyr = np.abs(data[list(GYR_COLS)].to_numpy(dtype=float)) > FULL_SCALE_GYR
+    return (acc | gyr).any(axis=1)
+
+
+def _drop_beyond_full_scale(sensors):
+    """Remove the samples beyond the full scale of the sensor (impossible values, transmission
+    artefacts): they are then lost samples, scored by "missing" and interpolated like them."""
+    notes, removed = [], {}
+    for name, data in sensors.items():
+        bad = beyond_full_scale(data)
+        removed[name] = [int(round(c)) for c in data.loc[bad, "PacketCounter"]]
+        if removed[name]:
+            sensors[name] = data[~bad].reset_index(drop=True)
+            notes.append("{}: {} sample{} beyond the full scale of the sensor (160 m/s^2, 2000 deg/s) treated "
+                         "as lost".format(name, len(removed[name]), "s" if len(removed[name]) > 1 else ""))
+    return notes, removed
+
+
 # ---------------------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------------------
@@ -196,10 +218,12 @@ def load_files(files, freq, trial_id="trial", acc_unit="auto", gyr_unit="auto", 
         raise ValueError("the raw file(s) of {} are required".format(", ".join(missing)))
     sensors = {s: read_sensor_file(files[s]) for s in SENSORS if files.get(s)}
     notes = _convert_units(sensors, acc_unit, gyr_unit)
+    full_scale_notes, removed = _drop_beyond_full_scale(sensors)
+    notes += full_scale_notes
     if "HE" not in sensors:
         notes.append("no head sensor: the head indicators are not computed")
     return RawTrial(trial_id=trial_id, freq=float(freq), sensors=sensors, meta=meta or TrialMeta(),
-                    trial_dir=trial_dir, warnings=notes)
+                    trial_dir=trial_dir, warnings=notes, beyond_full_scale=removed)
 
 
 def load_trial(trial_dir, freq=None, acc_unit="auto", gyr_unit="auto"):

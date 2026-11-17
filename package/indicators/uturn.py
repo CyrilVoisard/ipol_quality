@@ -9,7 +9,7 @@ from .sensor import rest_window
 
 GROUP = "uturn"
 
-
+c
 def walk_vertical(aligned, stillness, sensor, settings):
     """Window of the vertical of ``sensor`` for its heading: the walk (the posture of the turn, as
     for the alignment of the corrected files), or the rest window without walk."""
